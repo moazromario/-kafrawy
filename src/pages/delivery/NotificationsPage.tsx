@@ -71,19 +71,19 @@ export default function NotificationsPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-[#F0F2F5] pb-20">
       {/* Header */}
-      <header className="bg-white px-4 pt-6 pb-4 sticky top-0 z-30 shadow-sm flex items-center justify-between">
+      <header className="bg-white px-4 pt-12 pb-4 sticky top-0 z-30 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate(-1)}
-            className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+            className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-700 hover:bg-blue-50 hover:text-[#1877F2] transition-all"
           >
             <ArrowRight size={20} />
           </button>
-          <h1 className="text-xl font-black text-gray-900">الإشعارات</h1>
+          <h1 className="text-xl font-black text-[#050505]">الإشعارات</h1>
         </div>
-        <button className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
+        <button className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 hover:text-red-500 transition-all">
           <Trash2 size={20} />
         </button>
       </header>
@@ -92,7 +92,7 @@ export default function NotificationsPage() {
         {/* Upcoming Reminders Link */}
         <button 
           onClick={() => navigate("/delivery/reminders")}
-          className="w-full p-6 bg-emerald-600 rounded-[32px] text-white flex items-center justify-between shadow-xl shadow-emerald-100 mb-6"
+          className="w-full p-6 bg-[#1877F2] rounded-[32px] text-white flex items-center justify-between shadow-xl shadow-blue-100 mb-6"
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md">
@@ -107,8 +107,8 @@ export default function NotificationsPage() {
         </button>
 
         <div className="flex items-center justify-between px-2 mb-2">
-          <p className="text-xs font-black text-gray-400 uppercase tracking-widest">الأحدث</p>
-          <button className="text-xs font-black text-emerald-600">تحديد الكل كمقروء</button>
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">الأحدث</p>
+          <button className="text-xs font-black text-[#1877F2]">تحديد الكل كمقروء</button>
         </div>
 
         <div className="space-y-3">
@@ -118,11 +118,11 @@ export default function NotificationsPage() {
               animate={{ opacity: 1, y: 0 }}
               key={notif.id}
               className={`bg-white p-5 rounded-[28px] shadow-sm border transition-all flex gap-4 relative group cursor-pointer ${
-                notif.isRead ? "border-gray-50" : "border-emerald-100 bg-emerald-50/20"
+                notif.isRead ? "border-gray-50" : "border-blue-100 bg-blue-50/20"
               }`}
             >
               {!notif.isRead && (
-                <div className="absolute top-5 left-5 w-2 h-2 bg-emerald-500 rounded-full" />
+                <div className="absolute top-5 left-5 w-2 h-2 bg-[#1877F2] rounded-full" />
               )}
               
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 ${notif.color}`}>
@@ -131,11 +131,11 @@ export default function NotificationsPage() {
 
               <div className="flex-1 space-y-1">
                 <div className="flex justify-between items-start">
-                  <h3 className={`font-black text-sm ${notif.isRead ? "text-gray-700" : "text-gray-900"}`}>
+                  <h3 className={`font-black text-sm ${notif.isRead ? "text-gray-700" : "text-[#050505]"}`}>
                     {notif.title}
                   </h3>
                 </div>
-                <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
+                <p className="text-xs text-gray-400 leading-relaxed line-clamp-2">
                   {notif.message}
                 </p>
                 <p className="text-[10px] font-bold text-gray-400 pt-1">

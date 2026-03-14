@@ -4,12 +4,15 @@
  */
 
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Toaster } from "sonner";
 import { AppProvider } from "./context/AppContext";
+import { AuthProvider } from "./context/AuthContext";
 import { DeliveryProvider } from "./context/DeliveryContext";
 import { MarketplaceProvider } from "./context/MarketplaceContext";
 import { ServicesProvider } from "./context/ServicesContext";
 import { MedicalProvider } from "./context/MedicalContext";
 import { JobsProvider } from "./context/JobsContext";
+import { CommunityProvider } from "./context/CommunityContext";
 import Layout from "./components/layout/Layout";
 import HomePage from "./pages/home/HomePage";
 import MarketplaceHomePage from "./pages/marketplace/MarketplaceHomePage";
@@ -60,6 +63,10 @@ import PaymentMethodPage from "./pages/delivery/PaymentMethodPage";
 import OrderRatingPage from "./pages/delivery/OrderRatingPage";
 import DeliveryMapPage from "./pages/delivery/DeliveryMapPage";
 import UpcomingRemindersPage from "./pages/delivery/UpcomingRemindersPage";
+import WalletPage from "./pages/wallet/WalletPage";
+import WalletTopupPage from "./pages/wallet/WalletTopupPage";
+import WalletStatusPage from "./pages/wallet/WalletStatusPage";
+import WalletAdminPage from "./pages/wallet/WalletAdminPage";
 import ServicesHomePage from "./pages/services/ServicesHomePage";
 import ProfessionalsListPage from "./pages/services/ProfessionalsListPage";
 import ProfessionalProfilePage from "./pages/services/ProfessionalProfilePage";
@@ -100,6 +107,7 @@ import MedicalWalletPage from "./pages/medical/MedicalWalletPage";
 import MedicalMapPage from "./pages/medical/MedicalMapPage";
 import MedicalEmergencyPage from "./pages/medical/MedicalEmergencyPage";
 import MedicalRecordsPage from "./pages/medical/MedicalRecordsPage";
+import MedicalAddRecordPage from "./pages/medical/MedicalAddRecordPage";
 
 import JobsHomePage from "./pages/jobs/JobsHomePage";
 import JobDetailsPage from "./pages/jobs/JobDetailsPage";
@@ -117,15 +125,20 @@ import JobAlertsSettingsPage from "./pages/jobs/JobAlertsSettingsPage";
 import ProfilePage from "./pages/profile/ProfilePage";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
+import AdminDashboard from "./modules/admin/AdminDashboard";
 
 export default function App() {
   return (
     <AppProvider>
+      <Toaster position="top-center" richColors />
+      <AuthProvider>
       <MarketplaceProvider>
         <DeliveryProvider>
           <ServicesProvider>
             <MedicalProvider>
               <JobsProvider>
+                <CommunityProvider>
                 <BrowserRouter>
           <Routes>
           <Route path="/" element={<Layout />}>
@@ -182,6 +195,12 @@ export default function App() {
             <Route path="delivery/map/:id" element={<DeliveryMapPage />} />
             <Route path="delivery/reminders" element={<UpcomingRemindersPage />} />
 
+            {/* Wallet Module Routes */}
+            <Route path="wallet" element={<WalletPage />} />
+            <Route path="wallet/topup" element={<WalletTopupPage />} />
+            <Route path="wallet/status/:status" element={<WalletStatusPage />} />
+            <Route path="wallet/admin" element={<WalletAdminPage />} />
+
             {/* Technicians Module Routes (الفنيين) */}
             <Route path="services" element={<ServicesHomePage />} />
             <Route path="services/list" element={<ProfessionalsListPage />} />
@@ -225,6 +244,7 @@ export default function App() {
             <Route path="medical/map" element={<MedicalMapPage />} />
             <Route path="medical/emergency" element={<MedicalEmergencyPage />} />
             <Route path="medical/records" element={<MedicalRecordsPage />} />
+            <Route path="medical/add-record" element={<MedicalAddRecordPage />} />
 
             {/* Jobs Module Routes */}
             <Route path="jobs" element={<JobsHomePage />} />
@@ -242,16 +262,20 @@ export default function App() {
             <Route path="jobs/alerts-settings" element={<JobAlertsSettingsPage />} />
 
             <Route path="profile" element={<ProfilePage />} />
+            <Route path="admin" element={<AdminDashboard />} />
           </Route>
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
         </Routes>
       </BrowserRouter>
+      </CommunityProvider>
       </JobsProvider>
       </MedicalProvider>
       </ServicesProvider>
       </DeliveryProvider>
       </MarketplaceProvider>
+      </AuthProvider>
     </AppProvider>
   );
 }

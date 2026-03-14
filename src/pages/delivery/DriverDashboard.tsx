@@ -34,18 +34,18 @@ export default function DriverDashboard() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-[#F0F2F5] pb-20">
       {/* Header */}
-      <header className="bg-white px-6 pt-8 pb-6 sticky top-0 z-30 shadow-sm space-y-6">
+      <header className="bg-white px-6 pt-12 pb-6 sticky top-0 z-30 shadow-sm space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-emerald-100 overflow-hidden border-2 border-emerald-500 shadow-lg shadow-emerald-100">
+            <div className="w-14 h-14 rounded-2xl bg-blue-100 overflow-hidden border-2 border-[#1877F2] shadow-lg shadow-blue-100">
               <img src="https://picsum.photos/seed/driver/100/100" className="w-full h-full object-cover" alt="Driver" referrerPolicy="no-referrer" />
             </div>
             <div>
-              <h1 className="text-xl font-black text-gray-900">أهلاً، محمد! 👋</h1>
+              <h1 className="text-xl font-black text-[#050505]">أهلاً، محمد! 👋</h1>
               <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400">
-                <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-emerald-500 animate-pulse" : "bg-gray-300"}`} />
+                <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-[#1877F2] animate-pulse" : "bg-gray-300"}`} />
                 <span>{isOnline ? "أنت متصل الآن" : "أنت غير متصل"}</span>
               </div>
             </div>
@@ -53,11 +53,11 @@ export default function DriverDashboard() {
           <div className="flex gap-2">
             <button 
               onClick={() => navigate("/delivery/notifications")}
-              className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+              className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-700 hover:bg-blue-50 hover:text-[#1877F2] transition-all"
             >
               <Bell size={24} />
             </button>
-            <button className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center text-gray-700">
+            <button className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-700">
               <Settings size={24} />
             </button>
           </div>
@@ -68,7 +68,7 @@ export default function DriverDashboard() {
           <span className="text-sm font-black text-gray-700">حالة العمل</span>
           <button 
             onClick={() => setIsOnline(!isOnline)}
-            className={`w-16 h-8 rounded-full relative transition-all duration-300 ${isOnline ? "bg-emerald-600" : "bg-gray-300"}`}
+            className={`w-16 h-8 rounded-full relative transition-all duration-300 ${isOnline ? "bg-[#1877F2]" : "bg-gray-300"}`}
           >
             <motion.div 
               animate={{ x: isOnline ? 32 : 4 }}
@@ -88,7 +88,7 @@ export default function DriverDashboard() {
               </div>
               <div>
                 <p className="text-[9px] font-bold text-gray-400 uppercase">{stat.label}</p>
-                <p className="text-sm font-black text-gray-900">{stat.value}</p>
+                <p className="text-sm font-black text-[#050505]">{stat.value}</p>
               </div>
             </div>
           ))}
@@ -97,8 +97,8 @@ export default function DriverDashboard() {
         {/* Assigned Orders */}
         <section className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-black text-gray-900">الطلبات المسندة إليك</h2>
-            <div className="w-8 h-8 bg-emerald-600 text-white rounded-full flex items-center justify-center text-xs font-black">
+            <h2 className="text-lg font-black text-[#050505]">الطلبات المسندة إليك</h2>
+            <div className="w-8 h-8 bg-[#1877F2] text-white rounded-full flex items-center justify-center text-xs font-black">
               {assignedOrders.length}
             </div>
           </div>
@@ -112,15 +112,15 @@ export default function DriverDashboard() {
               >
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600">
+                    <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-[#1877F2]">
                       <Bike size={24} />
                     </div>
                     <div>
-                      <h3 className="font-black text-gray-900">طلب #{order.id}</h3>
+                      <h3 className="font-black text-[#050505]">طلب #{order.id}</h3>
                       <p className="text-xs font-bold text-gray-400">{order.store}</p>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${order.status === "جاري التوصيل" ? "bg-emerald-100 text-emerald-700" : "bg-orange-100 text-orange-700"}`}>
+                  <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${order.status === "جاري التوصيل" ? "bg-blue-100 text-blue-700" : "bg-orange-100 text-orange-700"}`}>
                     {order.status}
                   </span>
                 </div>
@@ -134,21 +134,21 @@ export default function DriverDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <TrendingUp size={16} className="text-emerald-500" />
+                    <TrendingUp size={16} className="text-[#1877F2]" />
                     <div>
                       <p className="text-[9px] font-bold text-gray-400 uppercase">ربحك</p>
-                      <p className="text-xs font-black text-emerald-600">{order.fee} ج.م</p>
+                      <p className="text-xs font-black text-[#1877F2]">{order.fee} ج.م</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-3">
                   <div className="flex gap-3">
-                    <button className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 active:scale-95 transition-all">
+                    <button className="flex-1 py-4 bg-[#1877F2] text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-100 active:scale-95 transition-all">
                       <Navigation size={18} />
                       <span>ملاحة للعميل</span>
                     </button>
-                    <button className="w-14 h-14 bg-gray-100 text-gray-700 rounded-2xl flex items-center justify-center active:scale-95 transition-all">
+                    <button className="w-14 h-14 bg-gray-50 text-gray-700 rounded-2xl flex items-center justify-center active:scale-95 transition-all">
                       <Phone size={24} />
                     </button>
                   </div>
@@ -157,7 +157,7 @@ export default function DriverDashboard() {
                       <CheckCircle2 size={18} />
                       <span>تم الاستلام</span>
                     </button>
-                    <button className="flex-1 py-4 bg-gray-900 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all">
+                    <button className="flex-1 py-4 bg-[#050505] text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition-all">
                       <CheckCircle2 size={18} />
                       <span>تم التوصيل</span>
                     </button>
@@ -171,8 +171,8 @@ export default function DriverDashboard() {
         {/* Earnings Chart Placeholder */}
         <section className="bg-white rounded-[32px] p-6 shadow-sm border border-gray-100 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-black text-gray-900">تحليل الأرباح</h2>
-            <button className="text-xs font-bold text-emerald-600">هذا الأسبوع</button>
+            <h2 className="text-lg font-black text-[#050505]">تحليل الأرباح</h2>
+            <button className="text-xs font-bold text-[#1877F2]">هذا الأسبوع</button>
           </div>
           <div className="h-40 flex items-end justify-between gap-2 pt-4">
             {[40, 70, 45, 90, 65, 80, 55].map((h, i) => (
@@ -180,7 +180,7 @@ export default function DriverDashboard() {
                 <motion.div 
                   initial={{ height: 0 }}
                   animate={{ height: `${h}%` }}
-                  className={`w-full rounded-t-lg ${i === 3 ? "bg-emerald-600" : "bg-emerald-100"}`}
+                  className={`w-full rounded-t-lg ${i === 3 ? "bg-[#1877F2]" : "bg-blue-100"}`}
                 />
                 <span className="text-[8px] font-bold text-gray-400">{["س", "ح", "ن", "ث", "ر", "خ", "ج"][i]}</span>
               </div>
@@ -191,7 +191,7 @@ export default function DriverDashboard() {
 
       {/* Bottom Nav Placeholder */}
       <div className="fixed bottom-0 left-0 right-0 bg-white p-4 border-t border-gray-100 flex justify-around items-center z-30">
-        <button className="flex flex-col items-center gap-1 text-emerald-600">
+        <button className="flex flex-col items-center gap-1 text-[#1877F2]">
           <LayoutGrid size={24} />
           <span className="text-[10px] font-bold">الرئيسية</span>
         </button>

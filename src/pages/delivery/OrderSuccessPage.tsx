@@ -18,8 +18,8 @@ export default function OrderSuccessPage() {
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center p-8 text-center relative overflow-hidden">
       {/* Background Decorative Elements */}
-      <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-emerald-50 rounded-full blur-3xl opacity-60" />
-      <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-emerald-50 rounded-full blur-3xl opacity-60" />
+      <div className="absolute top-[-10%] right-[-10%] w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-60" />
+      <div className="absolute bottom-[-10%] left-[-10%] w-64 h-64 bg-blue-50 rounded-full blur-3xl opacity-60" />
 
       {/* Success Animation Container */}
       <div className="relative mb-12">
@@ -27,7 +27,7 @@ export default function OrderSuccessPage() {
           initial={{ scale: 0, rotate: -45 }}
           animate={{ scale: 1, rotate: 0 }}
           transition={{ type: "spring", damping: 15, stiffness: 200 }}
-          className="w-56 h-56 bg-emerald-600 rounded-[60px] flex items-center justify-center text-white shadow-2xl shadow-emerald-200 relative z-10"
+          className="w-56 h-56 bg-[#1877F2] rounded-[60px] flex items-center justify-center text-white shadow-2xl shadow-blue-200 relative z-10"
         >
           <CheckCircle2 size={100} strokeWidth={2} />
         </motion.div>
@@ -49,7 +49,7 @@ export default function OrderSuccessPage() {
         <motion.div
           animate={{ scale: [1, 1.4, 1], opacity: [0.3, 0, 0.3] }}
           transition={{ duration: 2, repeat: Infinity }}
-          className="absolute inset-0 bg-emerald-100 rounded-[60px] -z-10"
+          className="absolute inset-0 bg-blue-100 rounded-[60px] -z-10"
         />
       </div>
 
@@ -58,7 +58,7 @@ export default function OrderSuccessPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="text-4xl font-black text-gray-900 tracking-tight"
+          className="text-4xl font-black text-[#050505] tracking-tight"
         >
           تم استلام طلبك!
         </motion.h1>
@@ -68,7 +68,7 @@ export default function OrderSuccessPage() {
           transition={{ delay: 0.4 }}
           className="text-gray-500 text-sm max-w-[300px] mx-auto leading-relaxed font-bold"
         >
-          شكراً لاختيارك كفراوي جو. طلبك الآن في أيدي أمينة وسيصلك خلال <span className="text-emerald-600">35 دقيقة</span> تقريباً.
+          شكراً لاختيارك كفراوي جو. طلبك الآن في أيدي أمينة وسيصلك خلال <span className="text-[#1877F2]">35 دقيقة</span> تقريباً.
         </motion.p>
       </div>
 
@@ -77,21 +77,21 @@ export default function OrderSuccessPage() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="w-full max-w-sm bg-gray-50 rounded-[40px] p-8 space-y-6 border border-gray-100 mb-12"
+        className="w-full max-w-sm bg-[#F0F2F5] rounded-[40px] p-8 space-y-6 border border-gray-100 mb-12"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-emerald-600 shadow-sm">
+            <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-[#1877F2] shadow-sm">
               <ShoppingBag size={24} />
             </div>
             <div className="text-right">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">رقم الطلب</p>
-              <p className="text-sm font-black text-gray-900">#KF-9924</p>
+              <p className="text-sm font-black text-[#050505]">#KF-9924</p>
             </div>
           </div>
           <div className="text-right">
             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">الحالة</p>
-            <p className="text-xs font-black text-emerald-600">قيد التحضير</p>
+            <p className="text-xs font-black text-[#1877F2]">قيد التحضير</p>
           </div>
         </div>
         
@@ -99,11 +99,11 @@ export default function OrderSuccessPage() {
         
         <div className="grid grid-cols-2 gap-4">
           <div className="flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm">
-            <Clock size={16} className="text-emerald-500" />
+            <Clock size={16} className="text-[#1877F2]" />
             <span className="text-[11px] font-black text-gray-700">12:45 م</span>
           </div>
           <div className="flex items-center gap-3 bg-white p-3 rounded-2xl shadow-sm">
-            <Bike size={16} className="text-emerald-500" />
+            <Bike size={16} className="text-[#1877F2]" />
             <span className="text-[11px] font-black text-gray-700">توصيل سريع</span>
           </div>
         </div>
@@ -118,7 +118,7 @@ export default function OrderSuccessPage() {
       >
         <button 
           onClick={() => navigate("/delivery/tracking/KF-9924")}
-          className="w-full py-5 bg-emerald-600 text-white rounded-[32px] font-black text-xl shadow-2xl shadow-emerald-100 flex items-center justify-center gap-4 active:scale-95 transition-all group"
+          className="w-full py-5 bg-[#1877F2] text-white rounded-[32px] font-black text-xl shadow-2xl shadow-blue-100 flex items-center justify-center gap-4 active:scale-95 transition-all group"
         >
           <span>تتبع الطلب</span>
           <ChevronLeft size={24} className="group-hover:-translate-x-1 transition-transform" />

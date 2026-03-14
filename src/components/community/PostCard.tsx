@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   MoreHorizontal, 
@@ -9,31 +9,72 @@ import {
   Heart, 
   Laugh, 
   Meh,
-  X
+  MapPin,
+  Smile
 } from "lucide-react";
 import { Badge, TrustLevel } from "./Badge";
 import { cn } from "@/src/utils/cn";
 
+import { Post } from "@/src/modules/community/communityService";
+import { useCommunity } from "@/src/context/CommunityContext";
+import { useAuth } from "@/src/context/AuthContext";
+
 interface PostCardProps {
-  index: number;
-  user: {
-    name: string;
-    avatar: string;
-    trustLevel: TrustLevel;
-  };
-  content: string;
-  image?: string;
-  time: string;
-  key?: number | string;
+  post: Post;
+  key?: string | number;
 }
 
-export default function PostCard({ index, user, content, image, time }: PostCardProps) {
+export default function PostCard({ post }: PostCardProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { likePost, unlikePost } = useCommunity();
   const [showReactions, setShowReactions] = useState(false);
-  const [reaction, setReaction] = useState<string | null>(null);
+  const [reaction, setReaction] = useState<string | null>(post.user_reaction || null);
+
+  useEffect(() => {
+    setReaction(post.user_reaction || null);
+  }, [post.user_reaction]);
 
   const handlePostClick = () => {
-    navigate(`/community/post/${index}`);
+    navigate(`/community/post/${post.id}`);
+  };
+
+  const handleReaction = async (reactionKey: string) => {
+    if (!user) {
+      alert('يجب تسجيل الدخول للتفاعل مع المنشورات');
+      return;
+    }
+
+    try {
+      if (reaction === reactionKey) {
+        await unlikePost(post.id);
+        setReaction(null);
+      } else {
+        await likePost(post.id, reactionKey);
+        setReaction(reactionKey);
+      }
+      setShowReactions(false);
+    } catch (err) {
+      console.error(err);
+      alert(err instanceof Error ? err.message : 'حدث خطأ أثناء التفاعل');
+    }
+  };
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({
+          title: 'منشور من مجتمع كفراوي',
+          text: post.content,
+          url: `${window.location.origin}/community/post/${post.id}`,
+        });
+      } else {
+        await navigator.clipboard.writeText(`${window.location.origin}/community/post/${post.id}`);
+        alert('تم نسخ رابط المنشور');
+      }
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
   };
 
   const reactions = [
@@ -43,21 +84,37 @@ export default function PostCard({ index, user, content, image, time }: PostCard
     { icon: Meh, label: "دهشة", color: "text-yellow-600", key: "wow" },
   ];
 
+  const currentReaction = reactions.find(r => r.key === reaction) || reactions[0];
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
       {/* Post Header */}
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3 cursor-pointer" onClick={handlePostClick}>
-          <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold">
-            {user.avatar}
+          <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold overflow-hidden">
+            {post.profiles?.avatar_url ? (
+              <img src={post.profiles.avatar_url} alt={post.profiles.full_name} className="w-full h-full object-cover" />
+            ) : (
+              post.profiles?.full_name?.charAt(0) || 'U'
+            )}
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-gray-900">{user.name}</h3>
-              <Badge level={user.trustLevel} />
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm font-bold text-gray-900">{post.profiles?.full_name || 'مستخدم'}</h3>
+              <Badge level="trusted" />
+              {post.feeling && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  يشعر بـ <span className="font-bold">{post.feeling}</span> <Smile size={12} className="text-yellow-500" />
+                </span>
+              )}
+              {post.location && (
+                <span className="text-xs text-gray-500 flex items-center gap-1">
+                  في <span className="font-bold">{post.location}</span> <MapPin size={12} className="text-orange-500" />
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-0.5">
-              <span>{time}</span>
+              <span>{new Date(post.created_at).toLocaleDateString('ar-EG', { hour: '2-digit', minute: '2-digit' })}</span>
               <span>•</span>
               <Globe size={10} />
             </div>
@@ -69,18 +126,28 @@ export default function PostCard({ index, user, content, image, time }: PostCard
       </div>
 
       {/* Post Content */}
-      <div className="px-4 pb-3 cursor-pointer" onClick={handlePostClick}>
-        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{content}</p>
-      </div>
+      {post.content && (
+        <div className="px-4 pb-3 cursor-pointer" onClick={handlePostClick}>
+          <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+        </div>
+      )}
 
-      {image && (
+      {post.post_media && post.post_media.length > 0 && (
         <div className="relative aspect-video bg-gray-100 cursor-pointer" onClick={handlePostClick}>
-          <img 
-            src={image} 
-            alt="Post content" 
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-          />
+          {post.post_media[0].media_type === 'video' ? (
+            <video 
+              src={post.post_media[0].url} 
+              controls 
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <img 
+              src={post.post_media[0].url} 
+              alt="Post content" 
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+            />
+          )}
         </div>
       )}
 
@@ -91,15 +158,11 @@ export default function PostCard({ index, user, content, image, time }: PostCard
             <div className="w-4 h-4 rounded-full bg-blue-500 flex items-center justify-center text-white border border-white">
               <ThumbsUp size={8} fill="currentColor" />
             </div>
-            <div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center text-white border border-white">
-              <Heart size={8} fill="currentColor" />
-            </div>
           </div>
-          <span className="text-[10px] text-gray-500">25 إعجاب</span>
+          <span className="text-[10px] text-gray-500">{post.likes_count} إعجاب</span>
         </div>
         <div className="flex gap-3 text-[10px] text-gray-500">
-          <span>12 تعليق</span>
-          <span>3 مشاركة</span>
+          <span className="cursor-pointer hover:underline" onClick={handlePostClick}>{post.comments_count} تعليق</span>
         </div>
       </div>
 
@@ -113,25 +176,22 @@ export default function PostCard({ index, user, content, image, time }: PostCard
           <button 
             className={cn(
               "w-full flex items-center justify-center gap-2 p-2 rounded-xl transition-colors",
-              reaction ? "text-blue-600" : "text-gray-500 hover:bg-gray-50"
+              reaction ? currentReaction.color : "text-gray-500 hover:bg-gray-50"
             )}
-            onClick={() => setReaction(reaction ? null : "like")}
+            onClick={() => handleReaction(reaction ? reaction : 'like')}
           >
-            <ThumbsUp size={20} fill={reaction ? "currentColor" : "none"} />
-            <span className="text-xs font-bold">إعجاب</span>
+            <currentReaction.icon size={20} fill={reaction ? "currentColor" : "none"} />
+            <span className="text-xs font-bold">{reaction ? currentReaction.label : "إعجاب"}</span>
           </button>
 
           {/* Floating Reactions */}
           {showReactions && (
-            <div className="absolute bottom-full left-4 bg-white rounded-full shadow-xl border border-gray-100 p-1 flex gap-1 animate-in fade-in slide-in-from-bottom-2 duration-200">
+            <div className="absolute bottom-full left-4 bg-white rounded-full shadow-xl border border-gray-100 p-1 flex gap-1 animate-in fade-in slide-in-from-bottom-2 duration-200 z-10">
               {reactions.map((r) => (
                 <button
                   key={r.key}
                   className="w-10 h-10 rounded-full hover:bg-gray-100 flex items-center justify-center transition-transform hover:scale-125"
-                  onClick={() => {
-                    setReaction(r.key);
-                    setShowReactions(false);
-                  }}
+                  onClick={() => handleReaction(r.key)}
                 >
                   <r.icon size={24} className={r.color} fill="currentColor" />
                 </button>
@@ -140,12 +200,18 @@ export default function PostCard({ index, user, content, image, time }: PostCard
           )}
         </div>
 
-        <button className="flex-1 flex items-center justify-center gap-2 p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors">
+        <button 
+          onClick={handlePostClick}
+          className="flex-1 flex items-center justify-center gap-2 p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors"
+        >
           <MessageCircle size={20} />
           <span className="text-xs font-bold">تعليق</span>
         </button>
 
-        <button className="flex-1 flex items-center justify-center gap-2 p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors">
+        <button 
+          onClick={handleShare}
+          className="flex-1 flex items-center justify-center gap-2 p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors"
+        >
           <Share2 size={20} />
           <span className="text-xs font-bold">مشاركة</span>
         </button>

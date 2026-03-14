@@ -5,13 +5,24 @@ import {
   Bell, 
   MessageCircle, 
   Search, 
-  Menu
+  Menu,
+  LogOut
 } from "lucide-react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useApp } from "@/src/context/AppContext";
+import { useAuth } from "@/src/context/AuthContext";
+import { authService } from "@/src/modules/auth/authService";
 
 export default function CommunityNavbar() {
+  const navigate = useNavigate();
   const { notificationsCount } = useApp();
+  const { user, profile, refreshProfile } = useAuth();
+
+  const handleLogout = async () => {
+    await authService.signOut();
+    await refreshProfile();
+    navigate("/login");
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-white border-b border-gray-200 shadow-sm">
@@ -42,20 +53,41 @@ export default function CommunityNavbar() {
 
         {/* Right: Actions & Profile */}
         <div className="flex items-center justify-end gap-2 flex-1">
-          <div className="hidden lg:flex items-center gap-2 mr-2">
-            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-emerald-600 font-bold text-xs">
-              M
+          {user && (
+            <div className="hidden lg:flex items-center gap-2 mr-2">
+              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-emerald-600 font-bold text-xs overflow-hidden">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  profile?.full_name?.charAt(0) || user.email?.charAt(0).toUpperCase()
+                )}
+              </div>
+              <span className="text-sm font-bold text-gray-900">{profile?.full_name || user.email?.split('@')[0]}</span>
             </div>
-            <span className="text-sm font-bold text-gray-900">محمد</span>
-          </div>
+          )}
           
           <div className="flex items-center gap-1">
             <IconButton icon={Menu} className="lg:hidden" />
             <IconButton icon={MessageCircle} to="/community/messages" />
             <IconButton icon={Bell} to="/community/notifications" badge={notificationsCount} />
-            <Link to="/profile" className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border border-gray-200">
-              <img src="https://picsum.photos/seed/user1/100/100" alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            </Link>
+            {user ? (
+              <>
+                <Link to="/profile" className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border border-gray-200">
+                  <img src={profile?.avatar_url || "https://picsum.photos/seed/user1/100/100"} alt="Profile" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                </Link>
+                <button 
+                  onClick={handleLogout}
+                  className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                  title="تسجيل الخروج"
+                >
+                  <LogOut size={20} />
+                </button>
+              </>
+            ) : (
+              <Link to="/login" className="px-4 py-1.5 bg-emerald-600 text-white rounded-full text-xs font-bold hover:bg-emerald-700 transition-colors">
+                دخول
+              </Link>
+            )}
           </div>
         </div>
       </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   TrendingUp, 
@@ -9,7 +9,8 @@ import {
   Megaphone,
   Plus,
   Zap,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import { cn } from "@/src/utils/cn";
 import CommunityNavbar from "@/src/components/community/CommunityNavbar";
@@ -17,13 +18,39 @@ import CommunitySidebar from "@/src/components/community/CommunitySidebar";
 import ContactsSidebar from "@/src/components/community/ContactsSidebar";
 import CreatePost from "@/src/components/community/CreatePost";
 import PostCard from "@/src/components/community/PostCard";
+import ReligiousModule from "@/src/components/religious/ReligiousModule";
 import { TrustLevel } from "@/src/components/community/Badge";
+
+import { useCommunity } from "@/src/context/CommunityContext";
 
 type TabType = 'trending' | 'neighborhood' | 'market' | 'services' | 'qa' | 'ads';
 
 export default function CommunityPage() {
+  const { posts, loading: postsLoading, loadingMore, hasMore, loadMore } = useCommunity();
   const [activeTab, setActiveTab] = useState<TabType>('trending');
   const [selectedStory, setSelectedStory] = useState<any>(null);
+  const observerTarget = useRef(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && !loadingMore && hasMore) {
+          loadMore();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [loadingMore, hasMore, loadMore]);
 
   const tabs = [
     { id: 'trending', label: 'الترند', icon: TrendingUp },
@@ -42,39 +69,18 @@ export default function CommunityPage() {
     { id: 5, user: "ياسين", avatar: "Y", active: false },
   ];
 
-  const posts = [
-    {
-      id: 1,
-      user: { name: "أحمد علي", avatar: "A", trustLevel: "trusted" as TrustLevel },
-      content: "يا جماعة حد يعرف مواعيد عيادة دكتور أحمد النهاردة؟",
-      time: "منذ 15 دقيقة",
-      image: "https://picsum.photos/seed/post1/800/400"
-    },
-    {
-      id: 2,
-      user: { name: "سارة محمود", avatar: "S", trustLevel: "expert" as TrustLevel },
-      content: "السوق النهاردة في الحي التالت زحمة جداً، الأفضل تدخلوا من شارع الصيدلية.",
-      time: "منذ ساعة",
-    },
-    {
-      id: 3,
-      user: { name: "محمود حسن", avatar: "M", trustLevel: "verified_merchant" as TrustLevel },
-      content: "عرض خاص لأهل كفراوي: لابتوب ديل مستعمل بحالة الزيرو، السعر مفاجأة!",
-      time: "منذ ساعتين",
-      image: "https://picsum.photos/seed/post3/800/400"
-    }
-  ];
-
   return (
     <div className="min-h-screen bg-gray-100">
       <CommunityNavbar />
       
       <div className="max-w-[1600px] mx-auto px-4 flex gap-6">
-        {/* Left Sidebar */}
-        <CommunitySidebar />
+        {/* Left Sidebar - Hidden on mobile */}
+        <div className="hidden lg:block">
+          <CommunitySidebar />
+        </div>
 
         {/* Main Feed */}
-        <main className="flex-1 max-w-[680px] py-6 space-y-6 mx-auto">
+        <main className="flex-1 max-w-[680px] py-6 space-y-6 mx-auto w-full">
           {/* Stories Section */}
           <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
             {/* Your Story Card (Facebook Style) */}
@@ -208,6 +214,9 @@ export default function CommunityPage() {
           {/* Create Post */}
           <CreatePost />
 
+          {/* Religious Module */}
+          <ReligiousModule />
+
           {/* What's Happening Now - Real-time Alerts (Part of Feed) */}
           <section className="bg-emerald-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-100 overflow-hidden relative">
             <div className="flex items-center justify-between mb-3 relative z-10">
@@ -256,23 +265,39 @@ export default function CommunityPage() {
                 transition={{ duration: 0.2 }}
                 className="space-y-4"
               >
-                {posts.map((post) => (
-                  <PostCard 
-                    key={post.id} 
-                    index={post.id} 
-                    user={post.user}
-                    content={post.content}
-                    time={post.time}
-                    image={post.image}
-                  />
-                ))}
+                {postsLoading ? (
+                  <div className="flex justify-center py-10">
+                    <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                  </div>
+                ) : posts.length === 0 ? (
+                  <div className="text-center py-10 bg-white rounded-2xl border border-gray-100">
+                    <p className="text-gray-400 font-bold">لا توجد منشورات حالياً</p>
+                  </div>
+                ) : (
+                  <>
+                    {posts.map((post) => (
+                      <PostCard 
+                        key={post.id} 
+                        post={post}
+                      />
+                    ))}
+                    <div ref={observerTarget} className="h-4" />
+                    {loadingMore && (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+                      </div>
+                    )}
+                  </>
+                )}
               </motion.div>
             </AnimatePresence>
           </div>
         </main>
 
-        {/* Right Sidebar */}
-        <ContactsSidebar />
+        {/* Right Sidebar - Hidden on mobile */}
+        <div className="hidden xl:block">
+          <ContactsSidebar />
+        </div>
       </div>
     </div>
   );

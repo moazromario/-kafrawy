@@ -38,31 +38,31 @@ export default function StoreListPage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-[#F0F2F5] pb-20">
       {/* Header */}
-      <header className="bg-white px-4 pt-6 pb-4 sticky top-0 z-30 shadow-sm space-y-4">
+      <header className="bg-white px-4 pt-12 pb-4 sticky top-0 z-30 shadow-sm space-y-4">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate("/delivery")}
-            className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-700"
+            className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-700 hover:bg-blue-50 hover:text-[#1877F2] transition-all"
           >
             <ArrowRight size={20} />
           </button>
-          <h1 className="text-xl font-extrabold text-gray-900">المطاعم والمتاجر</h1>
+          <h1 className="text-xl font-black text-[#050505]">المطاعم والمتاجر</h1>
         </div>
 
         <div className="flex gap-3">
           <div className="relative flex-1 group">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors" size={18} />
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#1877F2] transition-colors" size={18} />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="ابحث عن مطعم أو متجر..."
-              className="w-full pr-10 pl-4 py-2.5 bg-gray-100 border-none rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
+              className="w-full pr-10 pl-4 py-3 bg-gray-100 border-none rounded-xl text-sm font-bold focus:ring-2 focus:ring-[#1877F2] outline-none transition-all"
             />
           </div>
-          <button className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center text-gray-700">
+          <button className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center text-gray-700 hover:bg-blue-50 hover:text-[#1877F2] transition-all">
             <Filter size={20} />
           </button>
         </div>
@@ -72,10 +72,10 @@ export default function StoreListPage() {
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
-              className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+              className={`px-6 py-2.5 rounded-full text-xs font-black whitespace-nowrap transition-all ${
                 selectedCategory === cat 
-                ? "bg-emerald-600 text-white shadow-md shadow-emerald-100" 
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                ? "bg-[#1877F2] text-white shadow-lg shadow-blue-100" 
+                : "bg-gray-100 text-gray-400 hover:bg-gray-200"
               }`}
             >
               {cat}
@@ -86,8 +86,8 @@ export default function StoreListPage() {
 
       <main className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <p className="text-xs font-bold text-gray-400 uppercase">{filteredStores.length} متجر متاح</p>
-          <div className="flex items-center gap-1 text-xs font-bold text-emerald-600 cursor-pointer">
+          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{filteredStores.length} متجر متاح</p>
+          <div className="flex items-center gap-1 text-xs font-black text-[#1877F2] cursor-pointer">
             <span>الأكثر تقييماً</span>
             <ChevronDown size={14} />
           </div>
@@ -102,7 +102,7 @@ export default function StoreListPage() {
               whileHover={{ y: -5 }}
               key={store.id}
               onClick={() => navigate(`/delivery/store/${store.id}`)}
-              className="bg-white rounded-[32px] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-emerald-100/50 border border-gray-100 cursor-pointer group transition-all duration-500"
+              className="bg-white rounded-[40px] overflow-hidden shadow-sm hover:shadow-xl hover:shadow-blue-100/50 border border-gray-100 cursor-pointer group transition-all duration-500"
             >
               {/* Image Section */}
               <div className="relative h-52 overflow-hidden">
@@ -118,9 +118,9 @@ export default function StoreListPage() {
                 <div className="absolute top-4 right-4 flex flex-col gap-2">
                   <div className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-2xl flex items-center gap-1.5 shadow-lg">
                     <Star size={14} className="text-amber-400 fill-amber-400" />
-                    <span className="text-xs font-black text-gray-900">{store.rating}</span>
+                    <span className="text-xs font-black text-[#050505]">{store.rating}</span>
                   </div>
-                  <div className="px-3 py-1.5 bg-emerald-600/90 backdrop-blur-md rounded-2xl flex items-center gap-1.5 shadow-lg text-white">
+                  <div className="px-3 py-1.5 bg-[#1877F2]/90 backdrop-blur-md rounded-2xl flex items-center gap-1.5 shadow-lg text-white">
                     <Clock size={14} />
                     <span className="text-[10px] font-black">{store.time}</span>
                   </div>
@@ -138,7 +138,7 @@ export default function StoreListPage() {
               <div className="p-6 space-y-4">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="text-xl font-black text-gray-900 group-hover:text-emerald-600 transition-colors duration-300">
+                    <h3 className="text-xl font-black text-[#050505] group-hover:text-[#1877F2] transition-colors duration-300">
                       {store.name}
                     </h3>
                     <p className="text-xs font-bold text-gray-400 mt-1">أفضل المأكولات في مدينة العبور</p>
@@ -149,7 +149,7 @@ export default function StoreListPage() {
                         <img src={`https://i.pravatar.cc/100?u=${store.id}${i}`} alt="user" className="w-full h-full object-cover" />
                       </div>
                     ))}
-                    <div className="w-7 h-7 rounded-full border-2 border-white bg-emerald-50 flex items-center justify-center text-[8px] font-black text-emerald-600 shadow-sm">
+                    <div className="w-7 h-7 rounded-full border-2 border-white bg-blue-50 flex items-center justify-center text-[8px] font-black text-[#1877F2] shadow-sm">
                       +12
                     </div>
                   </div>
@@ -158,12 +158,12 @@ export default function StoreListPage() {
                 <div className="flex items-center justify-between pt-2">
                   <div className="flex items-center gap-6">
                     <div className="flex items-center gap-2">
-                      <div className="w-9 h-9 bg-emerald-50 rounded-2xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all duration-300">
+                      <div className="w-9 h-9 bg-blue-50 rounded-2xl flex items-center justify-center text-[#1877F2] group-hover:bg-[#1877F2] group-hover:text-white transition-all duration-300">
                         <Bike size={20} />
                       </div>
                       <div>
                         <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">التوصيل</p>
-                        <p className="text-sm font-black text-gray-900">{store.fee} ج.م</p>
+                        <p className="text-sm font-black text-[#050505]">{store.fee} ج.م</p>
                       </div>
                     </div>
                     <div className="w-px h-8 bg-gray-100" />
@@ -173,12 +173,12 @@ export default function StoreListPage() {
                       </div>
                       <div>
                         <p className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">المسافة</p>
-                        <p className="text-sm font-black text-gray-900">1.2 كم</p>
+                        <p className="text-sm font-black text-[#050505]">1.2 كم</p>
                       </div>
                     </div>
                   </div>
 
-                  <button className="px-5 py-2.5 bg-gray-900 text-white rounded-2xl text-xs font-black flex items-center gap-2 group-hover:bg-emerald-600 transition-all duration-300 shadow-lg shadow-gray-200 group-hover:shadow-emerald-200">
+                  <button className="px-5 py-2.5 bg-[#050505] text-white rounded-2xl text-xs font-black flex items-center gap-2 hover:bg-[#1877F2] transition-all duration-300 shadow-lg shadow-gray-200 hover:shadow-blue-200">
                     <span>دخول</span>
                     <ArrowRight size={16} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
                   </button>

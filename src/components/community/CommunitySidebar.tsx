@@ -9,10 +9,18 @@ import {
   User
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/src/context/AuthContext";
 
 export default function CommunitySidebar() {
+  const { user, profile } = useAuth();
+
   const menuItems = [
-    { icon: User, label: "محمد أحمد", path: "/profile", color: "text-emerald-600" },
+    { 
+      icon: User, 
+      label: profile?.full_name || user?.email?.split('@')[0] || "الملف الشخصي", 
+      path: "/profile", 
+      color: "text-emerald-600" 
+    },
     { icon: Users, label: "الأصدقاء", path: "/community/friends", color: "text-blue-500" },
     { icon: LayoutGrid, label: "المجموعات", path: "/community/groups", color: "text-purple-500" },
     { icon: Clock, label: "الأحدث", path: "/community", color: "text-indigo-500" },
@@ -24,9 +32,9 @@ export default function CommunitySidebar() {
   return (
     <aside className="hidden lg:block w-[300px] sticky top-20 h-[calc(100vh-80px)] overflow-y-auto no-scrollbar py-2">
       <div className="space-y-1">
-        {menuItems.map((item) => (
+        {menuItems.map((item, index) => (
           <Link
-            key={item.label}
+            key={index}
             to={item.path}
             className="flex items-center gap-3 p-2 rounded-xl hover:bg-gray-100 transition-colors group"
           >

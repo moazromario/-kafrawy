@@ -15,16 +15,23 @@ import {
   MoreHorizontal, 
   Plus, 
   ChevronRight, 
+  ChevronLeft,
   Star,
   Zap,
   Tag,
   Clock,
   MapPin,
-  Stethoscope
+  Stethoscope,
+  Truck,
+  Wallet
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/src/utils/cn";
 import { useJobs } from "@/src/context/JobsContext";
+import { useApp } from "@/src/context/AppContext";
+import { useAuth } from "@/src/context/AuthContext";
+import { authService } from "@/src/modules/auth/authService";
+import { supabase } from "@/src/lib/supabase";
 
 // --- Mock Data ---
 
@@ -44,6 +51,8 @@ const PROMO_BANNERS = [
 ];
 
 const QUICK_ACTIONS = [
+  { id: "delivery", name: "دليفري", icon: Truck, color: "bg-blue-50 text-[#1877F2]", path: "/delivery" },
+  { id: "wallet", name: "المحفظة", icon: Wallet, color: "bg-blue-50 text-[#1877F2]", path: "/wallet" },
   { id: "market", name: "السوق", icon: ShoppingBag, color: "bg-blue-50 text-blue-600", path: "/marketplace" },
   { id: "jobs", name: "وظائف", icon: Briefcase, color: "bg-emerald-50 text-emerald-600", path: "/jobs" },
   { id: "medical", name: "طبي", icon: Stethoscope, color: "bg-red-50 text-red-600", path: "/medical" },
@@ -97,43 +106,61 @@ const FEED_POSTS = [
 
 // --- Components ---
 
-const Header = () => (
-  <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-4 py-3 flex items-center justify-between shadow-sm">
-    <div className="flex items-center gap-3">
-      <div className="w-10 h-10 bg-[#1877F2] rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-100">
-        K
-      </div>
-      <div className="hidden sm:block">
-        <h1 className="text-lg font-black text-[#050505] leading-tight">كفراوي</h1>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Super App</p>
-      </div>
-    </div>
+const Header = () => {
+  const { user, profile } = useAuth();
+  const navigate = useNavigate();
 
-    <div className="flex-1 mx-4 max-w-md relative group">
-      <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#1877F2] transition-colors" size={18} />
-      <input 
-        type="text" 
-        placeholder="ابحث عن أي شيء..." 
-        className="w-full pr-10 pl-4 py-2.5 bg-gray-100 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-[#1877F2] outline-none transition-all placeholder:text-gray-400"
-      />
-    </div>
+  return (
+    <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100 px-4 py-3 flex items-center justify-between shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-[#1877F2] rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-blue-100">
+          K
+        </div>
+        <div className="hidden sm:block">
+          <h1 className="text-lg font-black text-[#050505] leading-tight">كفراوي</h1>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Super App</p>
+        </div>
+      </div>
 
-    <div className="flex items-center gap-2">
-      <button className="relative w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
-        <Bell size={22} />
-        <span className="absolute top-2 right-2 w-4 h-4 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
-          ٣
-        </span>
-      </button>
-      <button className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
-        <MessageCircle size={22} />
-      </button>
-      <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border-2 border-gray-100 shadow-sm hover:border-[#1877F2] transition-all">
-        <img src="https://picsum.photos/seed/me/100/100" className="w-full h-full object-cover" alt="Profile" referrerPolicy="no-referrer" />
-      </Link>
-    </div>
-  </header>
-);
+      <div className="flex-1 mx-4 max-w-md relative group">
+        <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#1877F2] transition-colors" size={18} />
+        <input 
+          type="text" 
+          placeholder="ابحث عن أي شيء..." 
+          className="w-full pr-10 pl-4 py-2.5 bg-gray-100 border-none rounded-2xl text-sm font-bold focus:ring-2 focus:ring-[#1877F2] outline-none transition-all placeholder:text-gray-400"
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        {user ? (
+          <>
+            <button className="relative w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
+              <Bell size={22} />
+              <span className="absolute top-2 right-2 w-4 h-4 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white">
+                ٣
+              </span>
+            </button>
+            <button className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
+              <MessageCircle size={22} />
+            </button>
+            <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border-2 border-gray-100 shadow-sm hover:border-[#1877F2] transition-all">
+              <img src={user.avatar_url || "https://picsum.photos/seed/me/100/100"} className="w-full h-full object-cover" alt="Profile" referrerPolicy="no-referrer" />
+            </Link>
+          </>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Link to="/login" className="px-4 py-2 text-sm font-bold text-gray-600 hover:bg-gray-50 rounded-xl transition-all">
+              دخول
+            </Link>
+            <Link to="/register" className="px-4 py-2 bg-[#1877F2] text-white rounded-xl text-sm font-bold shadow-lg shadow-blue-100 hover:bg-blue-700 transition-all">
+              تسجيل
+            </Link>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+};
 
 const Stories = () => (
   <section className="py-6 overflow-x-auto no-scrollbar flex gap-4 px-4">
@@ -166,22 +193,24 @@ const Stories = () => (
 const QuickActions = () => {
   const navigate = useNavigate();
   return (
-    <section className="px-4 py-4 grid grid-cols-5 gap-4">
-      {QUICK_ACTIONS.map((action) => (
-        <button 
-          key={action.id} 
-          onClick={() => navigate(action.path)}
-          className="flex flex-col items-center gap-2 group"
-        >
-          <div className={cn(
-            "w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-all group-hover:scale-110 group-hover:shadow-md",
-            action.color
-          )}>
-            <action.icon size={24} />
-          </div>
-          <span className="text-[10px] font-black text-gray-600">{action.name}</span>
-        </button>
-      ))}
+    <section className="px-4 py-4 overflow-x-auto no-scrollbar">
+      <div className="flex gap-6 min-w-max px-2">
+        {QUICK_ACTIONS.map((action) => (
+          <button 
+            key={action.id} 
+            onClick={() => navigate(action.path)}
+            className="flex flex-col items-center gap-2 group"
+          >
+            <div className={cn(
+              "w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-all group-hover:scale-110 group-hover:shadow-md",
+              action.color
+            )}>
+              <action.icon size={24} />
+            </div>
+            <span className="text-[10px] font-black text-gray-600">{action.name}</span>
+          </button>
+        ))}
+      </div>
     </section>
   );
 };
@@ -456,9 +485,48 @@ const BottomNav = () => {
   );
 };
 
-// --- Main Page ---
+import Feed from "@/src/modules/community/Feed";
 
-import { useLocation } from "react-router-dom";
+// ... (rest of the imports)
+
+const KafrawiGoSection = () => {
+  const navigate = useNavigate();
+  return (
+    <section className="px-4 py-6">
+      <div className="bg-white rounded-[40px] p-6 shadow-sm border border-gray-100 overflow-hidden relative group cursor-pointer" onClick={() => navigate("/delivery")}>
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#1877F2] to-cyan-400" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-[#1877F2] shadow-inner">
+              <Truck size={24} />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-[#050505]">كفراوي جو</h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">أسرع دليفري في العبور</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 text-[#1877F2] bg-blue-50 px-3 py-1.5 rounded-full">
+            <span className="text-[10px] font-black">اطلب الآن</span>
+            <ChevronLeft size={14} />
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { name: "مطاعم", icon: "🍔", color: "bg-orange-50" },
+            { name: "سوبر ماركت", icon: "🛒", color: "bg-emerald-50" },
+            { name: "صيدلية", icon: "💊", color: "bg-red-50" }
+          ].map((item, i) => (
+            <div key={i} className={cn("p-4 rounded-3xl flex flex-col items-center gap-2 transition-all hover:scale-105", item.color)}>
+              <span className="text-2xl">{item.icon}</span>
+              <span className="text-[10px] font-black text-gray-700">{item.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -469,6 +537,7 @@ export default function HomePage() {
       <main className="max-w-xl mx-auto">
         <Stories />
         <QuickActions />
+        <KafrawiGoSection />
         <PromoCarousel />
         
         {/* New Jobs Section */}
@@ -484,13 +553,7 @@ export default function HomePage() {
             </div>
           </div>
 
-          {FEED_POSTS.map((item) => {
-            if (item.type === "community") return <PostCard key={item.id} post={item} />;
-            if (item.type === "marketplace") return <ProductCard key={item.id} product={item} />;
-            if (item.type === "job") return <JobCard key={item.id} job={item} />;
-            if (item.type === "service") return <ServiceCard key={item.id} service={item} />;
-            return null;
-          })}
+          <Feed />
         </section>
 
         {/* Recommendations / Trending */}

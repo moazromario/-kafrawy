@@ -17,7 +17,8 @@ import {
   Clock,
   ShieldCheck,
   LayoutGrid,
-  Filter
+  Filter,
+  Loader2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useServices } from "@/src/context/ServicesContext";
@@ -33,7 +34,7 @@ const categories = [
 
 export default function ServicesHomePage() {
   const navigate = useNavigate();
-  const { professionals } = useServices();
+  const { professionals, loading } = useServices();
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
@@ -151,53 +152,57 @@ export default function ServicesHomePage() {
             </button>
           </div>
           <div className="space-y-4">
-            {professionals.map((pro) => (
-              <motion.div
-                whileHover={{ y: -5 }}
-                key={pro.id}
-                onClick={() => navigate(`/services/profile/${pro.id}`)}
-                className="bg-white p-5 rounded-[32px] shadow-sm border border-gray-50 flex gap-5 group cursor-pointer"
-              >
-                <div className="relative w-24 h-24 flex-shrink-0">
-                  <img 
-                    src={pro.image} 
-                    className="w-full h-full object-cover rounded-[24px] shadow-md group-hover:scale-105 transition-transform duration-500" 
-                    alt={pro.name} 
-                    referrerPolicy="no-referrer"
-                  />
-                  {pro.isVerified && (
-                    <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
-                      <ShieldCheck size={18} className="text-[#1877F2]" />
+            {loading ? (
+              <div className="flex justify-center py-10"><Loader2 className="animate-spin text-[#1877F2]" size={32} /></div>
+            ) : (
+              professionals.map((pro) => (
+                <motion.div
+                  whileHover={{ y: -5 }}
+                  key={pro.id}
+                  onClick={() => navigate(`/services/profile/${pro.id}`)}
+                  className="bg-white p-5 rounded-[32px] shadow-sm border border-gray-50 flex gap-5 group cursor-pointer"
+                >
+                  <div className="relative w-24 h-24 flex-shrink-0">
+                    <img 
+                      src={pro.image} 
+                      className="w-full h-full object-cover rounded-[24px] shadow-md group-hover:scale-105 transition-transform duration-500" 
+                      alt={pro.name} 
+                      referrerPolicy="no-referrer"
+                    />
+                    {pro.isVerified && (
+                      <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
+                        <ShieldCheck size={18} className="text-[#1877F2]" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h3 className="font-black text-[#050505] group-hover:text-[#1877F2] transition-colors">{pro.name}</h3>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{pro.specialty}</p>
+                      </div>
+                      <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg">
+                        <Star size={12} className="text-amber-400 fill-amber-400" />
+                        <span className="text-[10px] font-black text-amber-600">{pro.rating}</span>
+                      </div>
                     </div>
-                  )}
-                </div>
-                <div className="flex-1 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-black text-[#050505] group-hover:text-[#1877F2] transition-colors">{pro.name}</h3>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{pro.specialty}</p>
+                    <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400">
+                      <div className="flex items-center gap-1">
+                        <LayoutGrid size={12} />
+                        <span>{pro.worksCount} عمل</span>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Clock size={12} />
+                        <span>{pro.pricePerHour} ج.م / ساعة</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 bg-amber-50 px-2 py-1 rounded-lg">
-                      <Star size={12} className="text-amber-400 fill-amber-400" />
-                      <span className="text-[10px] font-black text-amber-600">{pro.rating}</span>
+                    <div className="pt-1">
+                      <button className="w-full py-2.5 bg-gray-50 text-[#1877F2] rounded-xl font-black text-[10px] group-hover:bg-[#1877F2] group-hover:text-white transition-all">عرض الملف الشخصي</button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 text-[10px] font-bold text-gray-400">
-                    <div className="flex items-center gap-1">
-                      <LayoutGrid size={12} />
-                      <span>{pro.worksCount} عمل</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock size={12} />
-                      <span>{pro.pricePerHour} ج.م / ساعة</span>
-                    </div>
-                  </div>
-                  <div className="pt-1">
-                    <button className="w-full py-2.5 bg-gray-50 text-[#1877F2] rounded-xl font-black text-[10px] group-hover:bg-[#1877F2] group-hover:text-white transition-all">عرض الملف الشخصي</button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                </motion.div>
+              ))
+            )}
           </div>
         </section>
 

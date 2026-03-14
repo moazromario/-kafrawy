@@ -31,7 +31,7 @@ export default function DeliveryMapPage() {
   };
 
   return (
-    <div className="h-screen w-full bg-emerald-50 relative overflow-hidden flex flex-col">
+    <div className="h-screen w-full bg-blue-50 relative overflow-hidden flex flex-col">
       {/* Immersive Map Background */}
       <div className="absolute inset-0 z-0">
         <div 
@@ -46,7 +46,7 @@ export default function DeliveryMapPage() {
       </div>
 
       {/* Top Header Overlay */}
-      <div className="absolute top-6 left-4 right-4 flex items-center justify-between z-10">
+      <div className="absolute top-12 left-4 right-4 flex items-center justify-between z-10">
         <button 
           onClick={() => navigate(-1)}
           className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center text-gray-700 active:scale-90 transition-all"
@@ -54,8 +54,8 @@ export default function DeliveryMapPage() {
           <ArrowRight size={24} />
         </button>
         <div className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-xl border border-white/50 flex items-center gap-3">
-          <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <span className="text-sm font-black text-gray-900">موقع المتجر</span>
+          <div className="w-2 h-2 bg-[#1877F2] rounded-full animate-pulse" />
+          <span className="text-sm font-black text-[#050505]">موقع المتجر</span>
         </div>
         <div className="w-12 h-12" /> {/* Spacer */}
       </div>
@@ -70,14 +70,14 @@ export default function DeliveryMapPage() {
           onClick={() => setShowStoreCard(true)}
         >
           <div className="relative group">
-            <div className="w-16 h-16 bg-emerald-600 rounded-3xl flex items-center justify-center text-white shadow-2xl border-4 border-white rotate-12 group-hover:rotate-0 transition-transform">
+            <div className="w-16 h-16 bg-[#1877F2] rounded-3xl flex items-center justify-center text-white shadow-2xl border-4 border-white rotate-12 group-hover:rotate-0 transition-transform">
               <ShoppingBag size={32} />
             </div>
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-emerald-600 rotate-45" />
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#1877F2] rotate-45" />
             
             {/* Store Label */}
             <div className="absolute -top-12 left-1/2 -translate-x-1/2 bg-white px-3 py-1.5 rounded-xl shadow-lg border border-gray-100 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="text-xs font-black text-gray-900">{store.name}</span>
+              <span className="text-xs font-black text-[#050505]">{store.name}</span>
             </div>
           </div>
         </motion.div>
@@ -120,7 +120,7 @@ export default function DeliveryMapPage() {
           <Minus size={24} />
         </button>
         <button 
-          className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center text-emerald-600 active:scale-90 transition-all mt-4"
+          className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center text-[#1877F2] active:scale-90 transition-all mt-4"
         >
           <Locate size={24} />
         </button>
@@ -144,7 +144,7 @@ export default function DeliveryMapPage() {
                     <img src={store.image} className="w-full h-full object-cover" alt={store.name} referrerPolicy="no-referrer" />
                   </div>
                   <div>
-                    <h3 className="font-black text-gray-900 text-xl">{store.name}</h3>
+                    <h3 className="font-black text-[#050505] text-xl">{store.name}</h3>
                     <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
                       <Star size={14} className="text-amber-400 fill-amber-400" />
                       <span>{store.rating} • {store.location}</span>
@@ -161,21 +161,21 @@ export default function DeliveryMapPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 p-4 rounded-3xl flex items-center gap-3 border border-gray-100">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-600 shadow-sm">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#1877F2] shadow-sm">
                     <Clock size={20} />
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">الوقت</p>
-                    <p className="text-sm font-black text-gray-900">{store.time}</p>
+                    <p className="text-sm font-black text-[#050505]">{store.time}</p>
                   </div>
                 </div>
                 <div className="bg-gray-50 p-4 rounded-3xl flex items-center gap-3 border border-gray-100">
-                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-600 shadow-sm">
+                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-[#1877F2] shadow-sm">
                     <Bike size={20} />
                   </div>
                   <div>
                     <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">التوصيل</p>
-                    <p className="text-sm font-black text-gray-900">{store.fee} ج.م</p>
+                    <p className="text-sm font-black text-[#050505]">{store.fee} ج.م</p>
                   </div>
                 </div>
               </div>
@@ -187,7 +187,7 @@ export default function DeliveryMapPage() {
                 >
                   عرض المنيو
                 </button>
-                <button className="flex-[2] py-5 bg-emerald-600 text-white rounded-[32px] font-black text-lg shadow-2xl shadow-emerald-100 flex items-center justify-center gap-3 active:scale-95 transition-all">
+                <button className="flex-[2] py-5 bg-[#1877F2] text-white rounded-[32px] font-black text-lg shadow-2xl shadow-blue-100 flex items-center justify-center gap-3 active:scale-95 transition-all">
                   <Navigation size={24} />
                   <span>بدء الملاحة</span>
                 </button>

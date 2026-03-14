@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/src/context/AuthContext";
+import { authService } from "@/src/modules/auth/authService";
+import { communityService } from "@/src/modules/community/communityService";
+import { toast } from "sonner";
 import { 
   UserPlus, 
   MessageCircle, 
@@ -20,7 +24,9 @@ import {
   Zap,
   Play,
   Clock,
-  Search
+  Search,
+  Shield,
+  Loader2
 } from "lucide-react";
 import CreatePost from "@/src/components/community/CreatePost";
 import PostCard from "@/src/components/community/PostCard";
@@ -30,19 +36,114 @@ import { cn } from "@/src/utils/cn";
 type ProfileTab = 'posts' | 'photos' | 'videos' | 'friends';
 
 export default function ProfilePage() {
+  const { user: authUser, profile: authProfile, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   const [isFollowing, setIsFollowing] = useState(false);
+  const [posts, setPosts] = useState<any[]>([]);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const observerTarget = useRef(null);
+
+  useEffect(() => {
+    if (!authLoading && !authUser) {
+      navigate("/login");
+    }
+  }, [authUser, authLoading, navigate]);
+
+  useEffect(() => {
+    if (authUser) {
+      fetchProfileData(1, false);
+      fetchFriends();
+    }
+  }, [authUser]);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      entries => {
+        if (entries[0].isIntersecting && !loadingMore && hasMore) {
+          loadMore();
+        }
+      },
+      { threshold: 1.0 }
+    );
+
+    if (observerTarget.current) {
+      observer.observe(observerTarget.current);
+    }
+
+    return () => {
+      if (observerTarget.current) {
+        observer.unobserve(observerTarget.current);
+      }
+    };
+  }, [loadingMore, hasMore]);
+
+  const fetchProfileData = async (pageToFetch = 1, append = false) => {
+    if (!authUser) return;
+    if (append) setLoadingMore(true);
+    else setLoading(true);
+    
+    try {
+      const { data, error } = await communityService.getPosts(authUser.id, pageToFetch);
+      
+      if (error) {
+        console.error("Error fetching posts:", error);
+        toast.error('حدث خطأ أثناء تحميل المنشورات');
+      } else if (data) {
+        const userPosts = data.filter(p => p.user_id === authUser.id);
+        setPosts(prev => append ? [...prev, ...userPosts] : userPosts);
+        setHasMore(data.length === 10);
+      }
+    } catch (error) {
+      console.error("Error fetching profile data:", error);
+      toast.error('حدث خطأ غير متوقع');
+    } finally {
+      if (append) setLoadingMore(false);
+      else setLoading(false);
+    }
+  };
+
+  const fetchFriends = async () => {
+    if (!authUser) return;
+    try {
+      const { data } = await communityService.getFriends(authUser.id);
+      if (data) setFriends(data);
+    } catch (error) {
+      console.error("Error fetching friends:", error);
+    }
+  };
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    const nextPage = page + 1;
+    setPage(nextPage);
+    await fetchProfileData(nextPage, true);
+  };
+
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
+  
+  if (!authUser) return null;
 
   const user = {
-    name: "محمد أحمد",
-    avatar: "M",
+    name: authProfile?.full_name || authUser.email?.split('@')[0] || "مستخدم كفراوي",
+    avatar: authProfile?.avatar_url || "https://picsum.photos/seed/user1/400/400",
     cover: "https://picsum.photos/seed/cover/1200/400",
-    bio: "مهتم بكل ما يخص حي كفراوي والخدمات المجتمعية. 🏠✨",
-    location: "الحي الثالث، كفراوي",
-    work: "مهندس برمجيات",
-    education: "جامعة القاهرة",
-    friendsCount: 1240,
-    mutualFriends: 45
+    bio: authProfile?.bio || "مهتم بكل ما يخص حي كفراوي والخدمات المجتمعية. 🏠✨",
+    location: authProfile?.location || "الحي الثالث، كفراوي",
+    work: authProfile?.work || "مهندس برمجيات",
+    education: authProfile?.education || "جامعة القاهرة",
+    friendsCount: friends.length,
+    mutualFriends: 0
   };
 
   const tabs = [
@@ -78,7 +179,7 @@ export default function ProfilePage() {
               <div className="relative group">
                 <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-emerald-100 border-4 border-white shadow-lg flex items-center justify-center text-emerald-600 text-5xl font-bold overflow-hidden">
                   <img 
-                    src="https://picsum.photos/seed/user1/400/400" 
+                    src={user.avatar} 
                     alt="Profile" 
                     className="w-full h-full object-cover"
                     referrerPolicy="no-referrer"
@@ -90,7 +191,7 @@ export default function ProfilePage() {
               </div>
 
               {/* Name & Stats */}
-              <div className="flex-1 text-center md:text-right pb-2">
+              <div className="flex-1 text-center md:text-right pb-2 md:pb-4">
                 <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{user.name}</h1>
                 <p className="text-gray-500 font-bold text-sm mt-1">{user.friendsCount} صديق • {user.mutualFriends} صديق مشترك</p>
                 
@@ -130,6 +231,10 @@ export default function ProfilePage() {
                 <button className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all">
                   <MoreHorizontal size={20} />
                 </button>
+                <Link to="/admin" className="p-2 bg-[#1877F2]/10 text-[#1877F2] rounded-xl hover:bg-[#1877F2]/20 transition-all flex items-center gap-2 px-4">
+                  <Shield size={18} />
+                  <span className="text-sm font-bold">لوحة الأدمن</span>
+                </Link>
               </div>
             </div>
 
@@ -182,7 +287,7 @@ export default function ProfilePage() {
                 <h2 className="text-lg font-bold text-gray-900">الصور</h2>
                 <button className="text-sm text-emerald-600 font-bold hover:underline">عرض الكل</button>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
                   <img 
                     key={i}
@@ -246,34 +351,27 @@ export default function ProfilePage() {
 
                   {/* Feed Content */}
                   <div className="space-y-4">
-                    {/* Pinned Post */}
-                    <div className="relative">
-                      <div className="absolute -top-3 right-4 z-10 bg-emerald-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm">
-                        <Zap size={10} fill="currentColor" />
-                        <span>منشور مثبت</span>
+                    {posts.length > 0 ? (
+                      <>
+                        {posts.map((post) => (
+                          <PostCard key={post.id} post={post} />
+                        ))}
+                        <div ref={observerTarget} className="h-4" />
+                        {loadingMore && (
+                          <div className="flex justify-center py-4">
+                            <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="bg-white rounded-2xl p-8 text-center border border-gray-100">
+                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Grid className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">لا توجد منشورات بعد</h3>
+                        <p className="text-gray-500 text-sm">شارك أفكارك وصورك مع مجتمع كفراوي.</p>
                       </div>
-                      <PostCard 
-                        index={99}
-                        user={{ name: "محمد أحمد", avatar: "M", trustLevel: "trusted" }}
-                        content="أهلاً بكم في ملفي الشخصي! يسعدني دائماً التواصل مع جيراني في كفراوي لمناقشة تطوير حينا الجميل. 🏠🤝"
-                        time="منذ شهر"
-                      />
-                    </div>
-
-                    {/* Regular Posts */}
-                    <PostCard 
-                      index={101}
-                      user={{ name: "محمد أحمد", avatar: "M", trustLevel: "trusted" }}
-                      content="يوم جميل في كفراوي! ☀️🏠"
-                      time="منذ يومين"
-                      image="https://picsum.photos/seed/my-post/800/400"
-                    />
-                    <PostCard 
-                      index={102}
-                      user={{ name: "محمد أحمد", avatar: "M", trustLevel: "trusted" }}
-                      content="حد جرب المطعم الجديد اللي فتح في الحي التالت؟"
-                      time="منذ أسبوع"
-                    />
+                    )}
                   </div>
                 </motion.div>
               )}
@@ -443,34 +541,44 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[...Array(10)].map((_, i) => (
-                      <div key={i} className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 hover:shadow-md transition-all group">
-                        <div className="relative">
-                          <img 
-                            src={`https://picsum.photos/seed/friend-list${i}/150/150`} 
-                            className="w-20 h-20 rounded-2xl object-cover shadow-sm"
-                            alt="Friend"
-                            referrerPolicy="no-referrer"
-                          />
-                          <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" />
-                        </div>
-                        
-                        <div className="flex-1 min-w-0">
-                          <h3 className="font-bold text-gray-900 text-base truncate group-hover:text-emerald-600 transition-colors">جار كفراوي {i + 1}</h3>
-                          <p className="text-xs text-gray-500 mt-0.5">12 صديق مشترك</p>
+                    {friends.length > 0 ? (
+                      friends.map((friend) => (
+                        <div key={friend.id} className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 hover:shadow-md transition-all group">
+                          <div className="relative">
+                            <img 
+                              src={friend.profiles?.avatar_url || `https://picsum.photos/seed/${friend.id}/150/150`} 
+                              className="w-20 h-20 rounded-2xl object-cover shadow-sm"
+                              alt="Friend"
+                              referrerPolicy="no-referrer"
+                            />
+                            <div className="absolute -bottom-1 -left-1 w-4 h-4 bg-emerald-500 border-2 border-white rounded-full" />
+                          </div>
                           
-                          <div className="flex gap-2 mt-3">
-                            <button className="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-1">
-                              <MessageCircle size={14} />
-                              <span>مراسلة</span>
-                            </button>
-                            <button className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all">
-                              <MoreHorizontal size={16} />
-                            </button>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-bold text-gray-900 text-base truncate group-hover:text-emerald-600 transition-colors">{friend.profiles?.full_name || "مستخدم"}</h3>
+                            <p className="text-xs text-gray-500 mt-0.5">صديق</p>
+                            
+                            <div className="flex gap-2 mt-3">
+                              <Link to="/community/messages" className="flex-1 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all flex items-center justify-center gap-1">
+                                <MessageCircle size={14} />
+                                <span>مراسلة</span>
+                              </Link>
+                              <button className="p-1.5 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all">
+                                <MoreHorizontal size={16} />
+                              </button>
+                            </div>
                           </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="col-span-full bg-white rounded-2xl p-8 text-center border border-gray-100">
+                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Users className="w-8 h-8 text-gray-400" />
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 mb-2">لا يوجد أصدقاء بعد</h3>
+                        <p className="text-gray-500 text-sm">ابحث عن أصدقاء وتواصل معهم في مجتمع كفراوي.</p>
                       </div>
-                    ))}
+                    )}
                   </div>
 
                   <button className="w-full mt-8 py-3 bg-gray-50 text-gray-600 rounded-2xl font-bold text-sm hover:bg-gray-100 transition-all">

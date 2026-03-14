@@ -40,9 +40,9 @@ export default function OrderTrackingPage() {
   const total = subtotal + deliveryFee;
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col h-screen overflow-hidden">
+    <div className="min-h-screen bg-[#F0F2F5] flex flex-col h-screen overflow-hidden">
       {/* Map Preview Section */}
-      <div className="flex-1 relative bg-emerald-50 overflow-hidden">
+      <div className="flex-1 relative bg-blue-50 overflow-hidden">
         {/* Mock Map Background - Using a more realistic image pattern */}
         <div className="absolute inset-0 opacity-40 bg-[url('https://www.google.com/maps/vt/pb=!1m4!1m3!1i15!2i19293!3i12345!2m3!1e0!2sm!3i420120488!3m8!2sar!3seg!5e1105!12m4!1e68!2m2!1sset!2sRoadmap!4e0!5m1!1e0!23i4111425')] bg-cover bg-center" />
         
@@ -50,7 +50,7 @@ export default function OrderTrackingPage() {
         <div className="absolute inset-0 bg-gradient-to-t from-white/80 via-transparent to-white/20" />
 
         {/* Header Overlay */}
-        <div className="absolute top-6 left-4 right-4 flex items-center justify-between z-10">
+        <div className="absolute top-12 left-4 right-4 flex items-center justify-between z-10">
           <button 
             onClick={() => navigate(-1)}
             className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center text-gray-700 active:scale-90 transition-all"
@@ -58,8 +58,8 @@ export default function OrderTrackingPage() {
             <ArrowRight size={24} />
           </button>
           <div className="bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-xl border border-white/50 flex items-center gap-3">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-sm font-black text-gray-900">تتبع مباشر للطلب</span>
+            <div className="w-2 h-2 bg-[#1877F2] rounded-full animate-pulse" />
+            <span className="text-sm font-black text-[#050505]">تتبع مباشر للطلب</span>
           </div>
           <button className="w-12 h-12 bg-white rounded-2xl shadow-xl flex items-center justify-center text-gray-700">
             <MoreHorizontal size={24} />
@@ -77,15 +77,15 @@ export default function OrderTrackingPage() {
           className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10"
         >
           <div className="relative">
-            <div className="w-16 h-16 bg-emerald-600 rounded-3xl flex items-center justify-center text-white shadow-2xl border-4 border-white rotate-12">
+            <div className="w-16 h-16 bg-[#1877F2] rounded-3xl flex items-center justify-center text-white shadow-2xl border-4 border-white rotate-12">
               <Bike size={32} />
             </div>
-            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-emerald-600 rotate-45" />
+            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#1877F2] rotate-45" />
             {/* Pulse effect around driver */}
             <motion.div 
               animate={{ scale: [1, 2], opacity: [0.5, 0] }}
               transition={{ duration: 2, repeat: Infinity }}
-              className="absolute inset-0 bg-emerald-400 rounded-3xl -z-10"
+              className="absolute inset-0 bg-blue-400 rounded-3xl -z-10"
             />
           </div>
         </motion.div>
@@ -116,18 +116,18 @@ export default function OrderTrackingPage() {
                 <img src="https://picsum.photos/seed/driver/200/200" className="w-full h-full object-cover" alt="Driver" referrerPolicy="no-referrer" />
               </div>
               <div>
-                <h3 className="font-black text-gray-900 text-lg">محمد الكفراوي</h3>
+                <h3 className="font-black text-[#050505] text-lg">محمد الكفراوي</h3>
                 <div className="flex items-center gap-2 text-xs font-bold text-gray-400">
-                  <Bike size={14} className="text-emerald-500" />
+                  <Bike size={14} className="text-[#1877F2]" />
                   <span>مندوب توصيل • 4.9 ★</span>
                 </div>
               </div>
             </div>
             <div className="flex gap-3">
-              <button className="w-14 h-14 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all">
+              <button className="w-14 h-14 bg-blue-50 text-[#1877F2] rounded-2xl flex items-center justify-center shadow-sm active:scale-90 transition-all">
                 <MessageCircle size={28} />
               </button>
-              <button className="w-14 h-14 bg-emerald-600 text-white rounded-2xl flex items-center justify-center shadow-xl shadow-emerald-100 active:scale-90 transition-all">
+              <button className="w-14 h-14 bg-[#1877F2] text-white rounded-2xl flex items-center justify-center shadow-xl shadow-blue-100 active:scale-90 transition-all">
                 <Phone size={28} />
               </button>
             </div>
@@ -136,19 +136,19 @@ export default function OrderTrackingPage() {
           {/* Status Summary */}
           <div className="bg-gray-50 rounded-[32px] p-6 flex items-center justify-between border border-gray-100">
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-emerald-600">
+              <div className="flex items-center gap-2 text-[#1877F2]">
                 <Clock size={18} />
-                <span className="text-xs font-black uppercase tracking-widest">الوقت المتوقع</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">الوقت المتوقع</span>
               </div>
-              <p className="text-2xl font-black text-gray-900">12:55 م</p>
+              <p className="text-2xl font-black text-[#050505]">12:55 م</p>
             </div>
             <div className="w-px h-12 bg-gray-200" />
             <div className="space-y-1 text-right">
               <div className="flex items-center gap-2 text-orange-500 justify-end">
                 <MapPin size={18} />
-                <span className="text-xs font-black uppercase tracking-widest">المسافة</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">المسافة</span>
               </div>
-              <p className="text-2xl font-black text-gray-900">1.2 كم</p>
+              <p className="text-2xl font-black text-[#050505]">1.2 كم</p>
             </div>
           </div>
 
@@ -171,31 +171,31 @@ export default function OrderTrackingPage() {
               >
                 {/* Delivery Address */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest px-2">عنوان التوصيل</h4>
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">عنوان التوصيل</h4>
                   <div className="flex items-start gap-4 p-5 bg-white border border-gray-100 rounded-3xl shadow-sm">
-                    <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 flex-shrink-0">
+                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-[#1877F2] flex-shrink-0">
                       <MapPin size={20} />
                     </div>
                     <div>
-                      <p className="font-black text-gray-900">الحي الثالث، المجاورة الخامسة</p>
-                      <p className="text-xs text-gray-500 font-bold mt-1">عمارة 12، الدور الثاني، شقة 4</p>
+                      <p className="font-black text-[#050505]">الحي الثالث، المجاورة الخامسة</p>
+                      <p className="text-xs text-gray-400 font-bold mt-1">عمارة 12، الدور الثاني، شقة 4</p>
                     </div>
                   </div>
                 </div>
 
                 {/* Order Items */}
                 <div className="space-y-3">
-                  <h4 className="text-xs font-black text-gray-400 uppercase tracking-widest px-2">قائمة المشتريات</h4>
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">قائمة المشتريات</h4>
                   <div className="bg-white border border-gray-100 rounded-[32px] p-6 shadow-sm space-y-4">
                     {orderItems.map((item, idx) => (
                       <div key={idx} className="flex justify-between items-center">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center text-[10px] font-black text-emerald-600">
+                          <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center text-[10px] font-black text-[#1877F2]">
                             {item.quantity}x
                           </div>
                           <span className="text-sm font-bold text-gray-700">{item.name}</span>
                         </div>
-                        <span className="text-sm font-black text-gray-900">{item.price * item.quantity} ج.م</span>
+                        <span className="text-sm font-black text-[#050505]">{item.price * item.quantity} ج.م</span>
                       </div>
                     ))}
                     <div className="pt-4 border-t border-gray-50 space-y-2">
@@ -208,8 +208,8 @@ export default function OrderTrackingPage() {
                         <span>{deliveryFee} ج.م</span>
                       </div>
                       <div className="flex justify-between items-center pt-2">
-                        <span className="font-black text-gray-900">الإجمالي</span>
-                        <span className="text-lg font-black text-emerald-600">{total} ج.م</span>
+                        <span className="font-black text-[#050505]">الإجمالي</span>
+                        <span className="text-lg font-black text-[#1877F2]">{total} ج.م</span>
                       </div>
                     </div>
                   </div>
@@ -221,7 +221,7 @@ export default function OrderTrackingPage() {
                     <CreditCard size={20} className="text-gray-400" />
                     <span className="text-sm font-black text-gray-700">طريقة الدفع</span>
                   </div>
-                  <span className="text-sm font-black text-gray-900">نقدي (كاش)</span>
+                  <span className="text-sm font-black text-[#050505]">نقدي (كاش)</span>
                 </div>
               </motion.div>
             )}
@@ -235,14 +235,14 @@ export default function OrderTrackingPage() {
               
               {steps.map((step) => (
                 <div key={step.id} className="relative flex items-center justify-between pr-8">
-                  <div className={`absolute right-0 w-6 h-6 rounded-full border-4 border-white shadow-sm flex items-center justify-center ${step.completed ? "bg-emerald-600" : step.current ? "bg-emerald-400 animate-pulse" : "bg-gray-200"}`}>
+                  <div className={`absolute right-0 w-6 h-6 rounded-full border-4 border-white shadow-sm flex items-center justify-center ${step.completed ? "bg-[#1877F2]" : step.current ? "bg-blue-400 animate-pulse" : "bg-gray-200"}`}>
                     {step.completed && <CheckCircle2 size={12} className="text-white" />}
                   </div>
                   <div className="flex flex-col">
-                    <span className={`text-sm font-black ${step.completed || step.current ? "text-gray-900" : "text-gray-400"}`}>
+                    <span className={`text-sm font-black ${step.completed || step.current ? "text-[#050505]" : "text-gray-400"}`}>
                       {step.title}
                     </span>
-                    {step.current && <span className="text-[10px] font-bold text-emerald-600">المندوب يقترب من موقعك</span>}
+                    {step.current && <span className="text-[10px] font-bold text-[#1877F2]">المندوب يقترب من موقعك</span>}
                   </div>
                   <span className="text-xs font-bold text-gray-400">{step.time}</span>
                 </div>
@@ -251,7 +251,7 @@ export default function OrderTrackingPage() {
           )}
 
           {/* Support Button */}
-          <button className="w-full py-5 bg-gray-900 text-white rounded-[32px] font-black text-lg flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all">
+          <button className="w-full py-5 bg-[#050505] text-white rounded-[32px] font-black text-lg flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all">
             <Navigation size={20} />
             <span>طلب المساعدة</span>
           </button>

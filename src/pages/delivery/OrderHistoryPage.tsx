@@ -28,19 +28,19 @@ export default function OrderHistoryPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
+    <div className="min-h-screen bg-[#F0F2F5] pb-20">
       {/* Header */}
-      <header className="bg-white px-4 pt-6 pb-4 sticky top-0 z-30 shadow-sm flex items-center justify-between">
+      <header className="bg-white px-4 pt-12 pb-4 sticky top-0 z-30 shadow-sm flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button 
             onClick={() => navigate("/delivery")}
-            className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition-all"
+            className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-700 hover:bg-blue-50 hover:text-[#1877F2] transition-all"
           >
             <ArrowRight size={20} />
           </button>
-          <h1 className="text-xl font-black text-gray-900">سجل الطلبات</h1>
+          <h1 className="text-xl font-black text-[#050505]">سجل الطلبات</h1>
         </div>
-        <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600">
+        <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center text-[#1877F2]">
           <ShoppingBag size={20} />
         </div>
       </header>
@@ -56,21 +56,21 @@ export default function OrderHistoryPage() {
           >
             <div className="flex justify-between items-start">
               <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-sm border border-gray-50">
+                <div className="w-16 h-16 rounded-3xl overflow-hidden shadow-sm border border-gray-50">
                   <img src={order.image} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt={order.store} referrerPolicy="no-referrer" />
                 </div>
                 <div>
-                  <h3 className="font-black text-gray-900 text-lg">{order.store}</h3>
+                  <h3 className="font-black text-[#050505] text-lg">{order.store}</h3>
                   <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400">
-                    <Clock size={12} className="text-emerald-500" />
+                    <Clock size={12} className="text-[#1877F2]" />
                     <span>{order.date} • {order.time}</span>
                   </div>
                 </div>
               </div>
               <div className={`flex items-center gap-1.5 px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-wider ${
                 order.status === "تم التوصيل" 
-                ? "bg-emerald-100 text-emerald-700" 
-                : "bg-red-100 text-red-700"
+                ? "bg-blue-50 text-[#1877F2]" 
+                : "bg-red-50 text-red-600"
               }`}>
                 {order.status === "تم التوصيل" ? <CheckCircle2 size={14} /> : <XCircle size={14} />}
                 <span>{order.status}</span>
@@ -86,10 +86,10 @@ export default function OrderHistoryPage() {
                 <div className="w-px h-10 bg-gray-100" />
                 <div>
                   <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">الإجمالي</p>
-                  <p className="text-sm font-black text-emerald-600">{order.total} ج.م</p>
+                  <p className="text-sm font-black text-[#1877F2]">{order.total} ج.م</p>
                 </div>
               </div>
-              <button className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center text-gray-400 hover:text-emerald-600 transition-all">
+              <button className="w-10 h-10 bg-gray-50 rounded-2xl flex items-center justify-center text-gray-400 hover:text-[#1877F2] transition-all">
                 <ChevronLeft size={20} />
               </button>
             </div>
@@ -97,7 +97,7 @@ export default function OrderHistoryPage() {
             <div className="flex gap-3">
               <button 
                 onClick={() => handleReorder(order.id)}
-                className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-emerald-100 active:scale-95 transition-all"
+                className="flex-1 py-4 bg-[#1877F2] text-white rounded-[24px] font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-blue-100 active:scale-95 transition-all"
               >
                 <RotateCcw size={18} />
                 <span>إعادة الطلب</span>
@@ -105,7 +105,7 @@ export default function OrderHistoryPage() {
               {order.status === "تم التوصيل" && (
                 <button 
                   onClick={() => navigate(`/delivery/rate/${order.id}`)}
-                  className="flex-1 py-4 bg-gray-100 text-gray-700 rounded-2xl font-black text-sm flex items-center justify-center gap-2 hover:bg-amber-50 hover:text-amber-600 transition-all active:scale-95"
+                  className="flex-1 py-4 bg-gray-50 text-gray-700 rounded-[24px] font-black text-sm flex items-center justify-center gap-2 hover:bg-amber-50 hover:text-amber-600 transition-all active:scale-95"
                 >
                   <Star size={18} className="text-amber-400" />
                   <span>تقييم الطلب</span>

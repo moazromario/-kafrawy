@@ -72,7 +72,10 @@ export default function MedicalRecordsPage() {
             </button>
             <h1 className="text-xl font-black text-[#050505]">ملفاتي الطبية</h1>
           </div>
-          <button className="w-12 h-12 bg-[#1E90FF] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-100 active:scale-95 transition-all">
+          <button 
+            onClick={() => navigate("/medical/add-record")}
+            className="w-12 h-12 bg-[#1E90FF] rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-100 active:scale-95 transition-all"
+          >
             <Plus size={24} />
           </button>
         </div>
