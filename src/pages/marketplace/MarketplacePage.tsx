@@ -116,11 +116,11 @@ export default function MarketplacePage() {
               onClick={() => navigate(`/marketplace/product/${product.id}`)}
               className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden group cursor-pointer flex flex-col h-full"
             >
-              <div className="relative aspect-[4/3] overflow-hidden">
+              <div className="relative aspect-[4/3] overflow-hidden bg-gray-50 flex justify-center items-center">
                 <img 
                   src={product.image_url || "https://picsum.photos/seed/product/400/400"} 
                   alt={product.title} 
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  className="max-w-full max-h-full object-contain transition-transform duration-500 group-hover:scale-110"
                   referrerPolicy="no-referrer"
                 />
                 <div className="absolute top-3 left-3 px-3 py-1 bg-white/90 backdrop-blur-sm rounded-full text-[10px] font-bold text-emerald-600 shadow-sm">

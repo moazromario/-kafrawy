@@ -16,6 +16,7 @@ import { communityService } from "@/src/modules/community/communityService";
 import { useAuth } from "@/src/context/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 import { ar } from "date-fns/locale";
+import { toast } from "sonner";
 
 type NotificationType = 'like' | 'comment' | 'friend_request' | 'group_invite' | 'page_invite' | 'mention';
 
@@ -71,6 +72,22 @@ export default function NotificationsPage() {
       setNotifications(notifications.map(n => n.id === id ? { ...n, is_read: true } : n));
     } catch (error) {
       console.error("Error marking as read:", error);
+    }
+  };
+
+  const handleAcceptRequest = async (actorId: string, notificationId: string) => {
+    if (!user) return;
+    try {
+      // actorId is the one who sent the request (user_id in friendships)
+      // user.id is the one who received it (friend_id in friendships)
+      const { error } = await communityService.acceptFriendRequest(undefined, actorId, user.id);
+      if (error) throw error;
+      toast.success("تم قبول طلب الصداقة");
+      // Mark notification as read or delete it
+      await markAsRead(notificationId);
+    } catch (error) {
+      console.error("Error accepting friend request:", error);
+      toast.error("فشل قبول الطلب");
     }
   };
 
@@ -167,10 +184,16 @@ export default function NotificationsPage() {
 
                   {notification.type === 'friend_request' && (
                     <div className="flex gap-2 mt-3">
-                      <button className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-sm">
+                      <button 
+                        onClick={() => handleAcceptRequest(notification.actor_id, notification.id)}
+                        className="flex-1 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all shadow-sm"
+                      >
                         قبول الطلب
                       </button>
-                      <button className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-200 transition-all">
+                      <button 
+                        onClick={() => deleteNotification(notification.id)}
+                        className="flex-1 py-2 bg-gray-100 text-gray-700 rounded-xl text-xs font-bold hover:bg-gray-200 transition-all"
+                      >
                         حذف
                       </button>
                     </div>

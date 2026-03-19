@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { 
   ArrowRight, 
   MoreHorizontal, 
@@ -14,7 +14,10 @@ import {
   Image,
   Smile,
   MapPin,
-  Loader2
+  Loader2,
+  Trash2,
+  Flag,
+  MoreVertical
 } from "lucide-react";
 import { Badge, TrustLevel } from "@/src/components/community/Badge";
 import CommunityNavbar from "@/src/components/community/CommunityNavbar";
@@ -25,12 +28,13 @@ import { useCommunity } from "@/src/context/CommunityContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { communityService, Post, Comment } from "@/src/modules/community/communityService";
 import { supabase } from "@/src/lib/supabase";
+import { toast } from "sonner";
 
 export default function PostDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const { likePost, unlikePost } = useCommunity();
+  const { likePost, unlikePost, deletePost, deleteComment } = useCommunity();
   
   const [post, setPost] = useState<Post | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
@@ -39,62 +43,82 @@ export default function PostDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showReactions, setShowReactions] = useState(false);
   const [reaction, setReaction] = useState<string | null>(null);
+  const [showPostMenu, setShowPostMenu] = useState(false);
+  const [isDeletingPost, setIsDeletingPost] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
+  const viewStartTimeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (user && id) {
+      viewStartTimeRef.current = Date.now();
+      
+      return () => {
+        if (viewStartTimeRef.current) {
+          const watchTime = (Date.now() - viewStartTimeRef.current) / 1000;
+          if (watchTime > 0.5) {
+            communityService.trackView(user.id, id, watchTime);
+          }
+        }
+      };
+    }
+  }, [user?.id, id]);
 
   useEffect(() => {
     if (!id) return;
     fetchPostDetails();
-
-    // Subscribe to comments
-    const subscription = supabase
-      .channel(`public:comments:post_id=eq.${id}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments', filter: `post_id=eq.${id}` }, () => {
-        fetchComments();
-      })
-      .subscribe();
-
-    return () => {
-      subscription.unsubscribe();
-    };
   }, [id, user?.id]);
 
   const fetchPostDetails = async () => {
     setLoading(true);
     try {
-      // Fetch post
-      const { data: postData, error: postError } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          profiles:user_id (full_name, avatar_url)
-        `)
-        .eq('id', id)
-        .single();
+      const { data: postData, error: postError } = await communityService.getPostById(id, user?.id);
       
-      if (postError) throw postError;
+      if (postError || !postData) throw postError || new Error('Post not found');
 
-      let userReaction = null;
-      if (user && postData) {
-        const { data: likeData } = await supabase
-          .from('post_likes')
-          .select('reaction_type')
-          .eq('user_id', user.id)
-          .eq('post_id', postData.id)
-          .maybeSingle();
-        
-        if (likeData) {
-          userReaction = likeData.reaction_type;
-        }
-      }
-
-      setPost({ ...postData, user_reaction: userReaction });
-      setReaction(userReaction);
+      setPost(postData);
+      setReaction(postData.user_reaction);
 
       // Fetch comments
       await fetchComments();
     } catch (err) {
       console.error("Error fetching post details:", err);
+      toast.error("فشل تحميل تفاصيل المنشور");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDeletePost = async () => {
+    if (!post || !window.confirm('هل أنت متأكد من حذف هذا المنشور؟')) return;
+    
+    setIsDeletingPost(true);
+    try {
+      await deletePost(post.id);
+      toast.success('تم حذف المنشور بنجاح');
+      navigate('/community');
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل حذف المنشور');
+    } finally {
+      setIsDeletingPost(false);
+      setShowPostMenu(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا التعليق؟')) return;
+    
+    setDeletingCommentId(commentId);
+    try {
+      await deleteComment(commentId);
+      setComments(prev => prev.filter(c => c.id !== commentId));
+      toast.success('تم حذف التعليق');
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل حذف التعليق');
+    } finally {
+      setDeletingCommentId(null);
     }
   };
 
@@ -110,15 +134,20 @@ export default function PostDetailPage() {
     if (!user || !id || !commentText.trim()) return;
     setSubmitting(true);
     try {
-      await communityService.addComment(user.id, id, commentText);
+      const { error } = await communityService.addComment(user.id, id, commentText);
+      if (error) throw error;
+      
+      communityService.trackEvent(user.id, id, 'comment');
       setCommentText("");
       // Optimistically update comments count on post
       if (post) {
         setPost({ ...post, comments_count: post.comments_count + 1 });
       }
+      // Fetch comments again to show the new comment
+      await fetchComments();
     } catch (err) {
       console.error("Error adding comment:", err);
-      alert("حدث خطأ أثناء إضافة التعليق");
+      toast.error("حدث خطأ أثناء إضافة التعليق");
     } finally {
       setSubmitting(false);
     }
@@ -153,8 +182,12 @@ export default function PostDetailPage() {
   };
 
   const handleShare = async () => {
-    if (!post) return;
+    if (isSharing) return;
+    setIsSharing(true);
     try {
+      if (user && id) {
+        await communityService.sharePost(user.id, id);
+      }
       if (navigator.share) {
         await navigator.share({
           title: 'منشور من مجتمع كفراوي',
@@ -167,6 +200,8 @@ export default function PostDetailPage() {
       }
     } catch (error) {
       console.error('Error sharing:', error);
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -218,25 +253,27 @@ export default function PostDetailPage() {
             {/* Header */}
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold overflow-hidden">
+                <Link 
+                  to={`/profile/${post.user_id}`}
+                  className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold overflow-hidden hover:opacity-80 transition-opacity"
+                >
                   {post.profiles?.avatar_url ? (
                     <img src={post.profiles.avatar_url} alt={post.profiles.full_name} className="w-full h-full object-cover" />
                   ) : (
                     post.profiles?.full_name?.charAt(0) || 'U'
                   )}
-                </div>
+                </Link>
                 <div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="text-sm font-bold text-gray-900">{post.profiles?.full_name || 'مستخدم'}</h3>
+                    <Link to={`/profile/${post.user_id}`}>
+                      <h3 className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">
+                        {post.profiles?.full_name || 'مستخدم'}
+                      </h3>
+                    </Link>
                     <Badge level="trusted" />
-                    {post.feeling && (
+                    {post.city && (
                       <span className="text-xs text-gray-500 flex items-center gap-1">
-                        يشعر بـ <span className="font-bold">{post.feeling}</span> <Smile size={12} className="text-yellow-500" />
-                      </span>
-                    )}
-                    {post.location && (
-                      <span className="text-xs text-gray-500 flex items-center gap-1">
-                        في <span className="font-bold">{post.location}</span> <MapPin size={12} className="text-orange-500" />
+                        في <span className="font-bold">{post.city}</span> <MapPin size={12} className="text-orange-500" />
                       </span>
                     )}
                   </div>
@@ -247,9 +284,41 @@ export default function PostDetailPage() {
                   </div>
                 </div>
               </div>
-              <button className="p-2 text-gray-400 hover:bg-gray-50 rounded-full transition-colors">
-                <MoreHorizontal size={20} />
-              </button>
+              
+              <div className="relative">
+                <button 
+                  onClick={() => setShowPostMenu(!showPostMenu)}
+                  className="p-2 text-gray-400 hover:bg-gray-50 rounded-full transition-colors"
+                >
+                  <MoreHorizontal size={20} />
+                </button>
+
+                {showPostMenu && (
+                  <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20 animate-in fade-in zoom-in-95 duration-100">
+                    {user?.id === post.user_id ? (
+                      <button 
+                        onClick={handleDeletePost}
+                        disabled={isDeletingPost}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                        <span>{isDeletingPost ? 'جاري الحذف...' : 'حذف المنشور'}</span>
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => {
+                          toast.info('تم إرسال البلاغ، شكراً لمساعدتنا في الحفاظ على المجتمع');
+                          setShowPostMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                      >
+                        <Flag size={16} />
+                        <span>إبلاغ عن المنشور</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Content */}
@@ -260,18 +329,18 @@ export default function PostDetailPage() {
             )}
 
             {post.media_url && (
-              <div className="relative aspect-video bg-gray-100">
-                {post.media_type === 'video' ? (
+              <div className="relative bg-gray-100 flex justify-center items-center overflow-hidden max-h-[70vh]">
+                {post.media_url.endsWith('.mp4') || post.media_url.includes('video') ? (
                   <video 
                     src={post.media_url} 
                     controls 
-                    className="w-full h-full object-cover"
+                    className="max-w-full max-h-[70vh] object-contain"
                   />
                 ) : (
                   <img 
                     src={post.media_url} 
                     alt="Post content" 
-                    className="w-full h-full object-cover"
+                    className="max-w-full max-h-[70vh] object-contain"
                     referrerPolicy="no-referrer"
                   />
                 )}
@@ -332,10 +401,11 @@ export default function PostDetailPage() {
               </button>
               <button 
                 onClick={handleShare}
-                className="flex-1 flex items-center justify-center gap-2 p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors"
+                disabled={isSharing}
+                className="flex-1 flex items-center justify-center gap-2 p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors disabled:opacity-50"
               >
                 <Share2 size={20} />
-                <span className="text-xs font-bold">مشاركة</span>
+                <span className="text-xs font-bold">{isSharing ? 'جاري المشاركة...' : 'مشاركة'}</span>
               </button>
             </div>
 
@@ -350,17 +420,36 @@ export default function PostDetailPage() {
                   comments.map((c) => (
                     <div key={c.id} className="space-y-3">
                       <div className="flex gap-3">
-                        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-sm flex-shrink-0 overflow-hidden">
+                        <Link 
+                          to={`/profile/${c.user_id}`}
+                          className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-sm flex-shrink-0 overflow-hidden hover:opacity-80 transition-opacity"
+                        >
                           {c.profiles?.avatar_url ? (
                             <img src={c.profiles.avatar_url} alt={c.profiles.full_name} className="w-full h-full object-cover" />
                           ) : (
                             c.profiles?.full_name?.charAt(0) || 'U'
                           )}
-                        </div>
+                        </Link>
                         <div className="flex-1">
-                          <div className="bg-gray-50 p-4 rounded-2xl rounded-tr-none border border-gray-100">
-                            <h5 className="text-sm font-bold text-gray-900 mb-1">{c.profiles?.full_name || 'مستخدم'}</h5>
-                            <p className="text-sm text-gray-700 leading-relaxed">{c.content}</p>
+                          <div className="flex items-start gap-2">
+                            <div className="bg-gray-50 p-4 rounded-2xl rounded-tr-none border border-gray-100 flex-1">
+                              <Link to={`/profile/${c.user_id}`}>
+                                <h5 className="text-sm font-bold text-gray-900 mb-1 hover:text-emerald-600 transition-colors">
+                                  {c.profiles?.full_name || 'مستخدم'}
+                                </h5>
+                              </Link>
+                              <p className="text-sm text-gray-700 leading-relaxed">{c.content}</p>
+                            </div>
+                            
+                            {user?.id === c.user_id && (
+                              <button 
+                                onClick={() => handleDeleteComment(c.id)}
+                                disabled={deletingCommentId === c.id}
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                           <div className="flex items-center gap-6 mt-2 px-2">
                             <button className="text-xs font-bold text-gray-500 hover:text-emerald-600 transition-colors">رد</button>

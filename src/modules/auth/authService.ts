@@ -52,6 +52,16 @@ export const authService = {
     return { data, error };
   },
 
+  async signInWithGithub() {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'github',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    return { data, error };
+  },
+
   async resendConfirmationEmail(email: string) {
     const { data, error } = await supabase.auth.resend({
       type: 'signup',
@@ -69,11 +79,40 @@ export const authService = {
   },
 
   async getProfile(userId: string) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    return { data, error };
+    try {
+      const response = await fetch(`/api/profile/${userId}`);
+      if (!response.ok) throw new Error('Profile not found');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      // Fallback to supabase if local fails (e.g. during migration)
+      const { data, error: sbError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      return { data, error: sbError };
+    }
+  },
+
+  async updateProfile(userId: string, updates: any) {
+    try {
+      const response = await fetch('/api/profile/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, updates })
+      });
+      if (!response.ok) throw new Error('Failed to update profile');
+      
+      // Also update Supabase to keep it in sync
+      await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId);
+        
+      return { data: true, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
   },
 };

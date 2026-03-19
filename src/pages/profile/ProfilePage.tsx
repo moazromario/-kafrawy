@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useAuth } from "@/src/context/AuthContext";
 import { authService } from "@/src/modules/auth/authService";
 import { communityService } from "@/src/modules/community/communityService";
 import { toast } from "sonner";
 import { 
+  User,
   UserPlus, 
   MessageCircle, 
   UserCheck, 
@@ -26,7 +27,9 @@ import {
   Clock,
   Search,
   Shield,
-  Loader2
+  Loader2,
+  Check,
+  X as CloseIcon
 } from "lucide-react";
 import CreatePost from "@/src/components/community/CreatePost";
 import PostCard from "@/src/components/community/PostCard";
@@ -36,17 +39,23 @@ import { cn } from "@/src/utils/cn";
 type ProfileTab = 'posts' | 'photos' | 'videos' | 'friends';
 
 export default function ProfilePage() {
+  const { id } = useParams();
   const { user: authUser, profile: authProfile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
+  const [profile, setProfile] = useState<any>(null);
   const [isFollowing, setIsFollowing] = useState(false);
   const [posts, setPosts] = useState<any[]>([]);
   const [friends, setFriends] = useState<any[]>([]);
+  const [friendRequests, setFriendRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const observerTarget = useRef(null);
+
+  const isOwnProfile = !id || id === authUser?.id;
+  const targetId = id || authUser?.id;
 
   useEffect(() => {
     if (!authLoading && !authUser) {
@@ -55,46 +64,39 @@ export default function ProfilePage() {
   }, [authUser, authLoading, navigate]);
 
   useEffect(() => {
-    if (authUser) {
+    if (targetId) {
+      fetchProfile();
       fetchProfileData(1, false);
       fetchFriends();
-    }
-  }, [authUser]);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting && !loadingMore && hasMore) {
-          loadMore();
-        }
-      },
-      { threshold: 1.0 }
-    );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
-    return () => {
-      if (observerTarget.current) {
-        observer.unobserve(observerTarget.current);
+      if (isOwnProfile) {
+        fetchFriendRequests();
       }
-    };
-  }, [loadingMore, hasMore]);
+    }
+  }, [targetId, isOwnProfile]);
+
+  const fetchProfile = async () => {
+    if (!targetId) return;
+    try {
+      const { data, error } = await authService.getProfile(targetId);
+      if (data) setProfile(data);
+    } catch (error) {
+      console.error("Error fetching profile:", error);
+    }
+  };
 
   const fetchProfileData = async (pageToFetch = 1, append = false) => {
-    if (!authUser) return;
+    if (!targetId) return;
     if (append) setLoadingMore(true);
     else setLoading(true);
     
     try {
-      const { data, error } = await communityService.getPosts(authUser.id, pageToFetch);
+      const { data, error } = await communityService.getPosts(targetId, pageToFetch);
       
       if (error) {
         console.error("Error fetching posts:", error);
         toast.error('حدث خطأ أثناء تحميل المنشورات');
       } else if (data) {
-        const userPosts = data.filter(p => p.user_id === authUser.id);
+        const userPosts = data.filter(p => p.user_id === targetId);
         setPosts(prev => append ? [...prev, ...userPosts] : userPosts);
         setHasMore(data.length === 10);
       }
@@ -108,12 +110,45 @@ export default function ProfilePage() {
   };
 
   const fetchFriends = async () => {
-    if (!authUser) return;
+    if (!targetId) return;
     try {
-      const { data } = await communityService.getFriends(authUser.id);
+      const { data } = await communityService.getFriends(targetId);
       if (data) setFriends(data);
     } catch (error) {
       console.error("Error fetching friends:", error);
+    }
+  };
+
+  const fetchFriendRequests = async () => {
+    if (!authUser) return;
+    try {
+      const { data } = await communityService.getFriendRequests(authUser.id);
+      if (data) setFriendRequests(data);
+    } catch (error) {
+      console.error("Error fetching friend requests:", error);
+    }
+  };
+
+  const handleAcceptRequest = async (requestId: string) => {
+    try {
+      const { error } = await communityService.acceptFriendRequest(requestId);
+      if (error) throw error;
+      toast.success('تم قبول طلب الصداقة');
+      fetchFriendRequests();
+      fetchFriends();
+    } catch (error) {
+      toast.error('فشل قبول الطلب');
+    }
+  };
+
+  const handleRejectRequest = async (requestId: string) => {
+    try {
+      const { error } = await communityService.rejectFriendRequest(requestId);
+      if (error) throw error;
+      toast.success('تم رفض طلب الصداقة');
+      fetchFriendRequests();
+    } catch (error) {
+      toast.error('فشل رفض الطلب');
     }
   };
 
@@ -122,6 +157,17 @@ export default function ProfilePage() {
     const nextPage = page + 1;
     setPage(nextPage);
     await fetchProfileData(nextPage, true);
+  };
+
+  const handleSendRequest = async () => {
+    if (!targetId || isOwnProfile) return;
+    try {
+      const { error } = await communityService.sendFriendRequest(authUser.id, targetId);
+      if (error) throw error;
+      toast.success('تم إرسال طلب الصداقة');
+    } catch (error) {
+      toast.error('فشل إرسال طلب الصداقة');
+    }
   };
 
   if (authLoading || loading) {
@@ -135,13 +181,13 @@ export default function ProfilePage() {
   if (!authUser) return null;
 
   const user = {
-    name: authProfile?.full_name || authUser.email?.split('@')[0] || "مستخدم كفراوي",
-    avatar: authProfile?.avatar_url || "https://picsum.photos/seed/user1/400/400",
-    cover: "https://picsum.photos/seed/cover/1200/400",
-    bio: authProfile?.bio || "مهتم بكل ما يخص حي كفراوي والخدمات المجتمعية. 🏠✨",
-    location: authProfile?.location || "الحي الثالث، كفراوي",
-    work: authProfile?.work || "مهندس برمجيات",
-    education: authProfile?.education || "جامعة القاهرة",
+    name: profile?.full_name || "مستخدم كفراوي",
+    avatar: profile?.avatar_url || "https://picsum.photos/seed/user1/400/400",
+    cover: profile?.cover_url || "https://picsum.photos/seed/cover/1200/400",
+    bio: profile?.bio || "مهتم بكل ما يخص حي كفراوي والخدمات المجتمعية. 🏠✨",
+    location: profile?.location || "الحي الثالث، كفراوي",
+    work: profile?.work || "مهندس برمجيات",
+    education: profile?.education || "جامعة القاهرة",
     friendsCount: friends.length,
     mutualFriends: 0
   };
@@ -166,10 +212,13 @@ export default function ProfilePage() {
               className="w-full h-full object-cover"
               referrerPolicy="no-referrer"
             />
-            <button className="absolute bottom-4 left-4 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm transition-all flex items-center gap-2 text-sm font-bold">
+            <Link 
+              to="/profile/edit"
+              className="absolute bottom-4 left-4 p-2 bg-black/50 hover:bg-black/70 text-white rounded-lg backdrop-blur-sm transition-all flex items-center gap-2 text-sm font-bold"
+            >
               <Camera size={18} />
               <span className="hidden md:inline">تعديل صورة الغلاف</span>
-            </button>
+            </Link>
           </div>
 
           {/* Profile Info Area */}
@@ -185,9 +234,12 @@ export default function ProfilePage() {
                     referrerPolicy="no-referrer"
                   />
                 </div>
-                <button className="absolute bottom-2 left-2 p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full shadow-md transition-all border-2 border-white">
+                <Link 
+                  to="/profile/edit"
+                  className="absolute bottom-2 left-2 p-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-full shadow-md transition-all border-2 border-white"
+                >
                   <Camera size={18} />
-                </button>
+                </Link>
               </div>
 
               {/* Name & Stats */}
@@ -211,23 +263,39 @@ export default function ProfilePage() {
 
               {/* Action Buttons */}
               <div className="flex gap-2 w-full md:w-auto pb-2">
-                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-100 hover:bg-emerald-700 transition-all">
-                  <UserPlus size={18} />
-                  <span>إضافة صديق</span>
-                </button>
-                <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-gray-100 text-gray-900 rounded-xl font-bold text-sm hover:bg-gray-200 transition-all">
-                  <MessageCircle size={18} />
-                  <span>مراسلة</span>
-                </button>
-                <button 
-                  onClick={() => setIsFollowing(!isFollowing)}
-                  className={cn(
-                    "flex items-center justify-center p-2 rounded-xl transition-all",
-                    isFollowing ? "bg-emerald-50 text-emerald-600" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  )}
-                >
-                  {isFollowing ? <UserCheck size={20} /> : <UserPlus size={20} />}
-                </button>
+                {isOwnProfile ? (
+                  <>
+                    <Link 
+                      to="/profile/edit"
+                      className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-100 hover:bg-emerald-700 transition-all"
+                    >
+                      <User size={18} />
+                      <span>تعديل الملف</span>
+                    </Link>
+                    <Link 
+                      to="/settings"
+                      className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-gray-100 text-gray-900 rounded-xl font-bold text-sm hover:bg-gray-200 transition-all"
+                    >
+                      <Settings size={18} />
+                      <span>الإعدادات</span>
+                    </Link>
+                  </>
+                ) : (
+                  <>
+                    <button 
+                      onClick={handleSendRequest}
+                      className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-md shadow-emerald-100 hover:bg-emerald-700 transition-all"
+                    >
+                      <UserPlus size={18} />
+                      <span>إضافة صديق</span>
+                    </button>
+                    <button className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-2 bg-gray-100 text-gray-900 rounded-xl font-bold text-sm hover:bg-gray-200 transition-all">
+                      <MessageCircle size={18} />
+                      <span>مراسلة</span>
+                    </button>
+                  </>
+                )}
+                
                 <button className="p-2 bg-gray-100 text-gray-600 rounded-xl hover:bg-gray-200 transition-all">
                   <MoreHorizontal size={20} />
                 </button>
@@ -277,46 +345,56 @@ export default function ProfilePage() {
                 <InfoItem icon={Heart} text="أعزب" />
               </div>
 
-              <button className="w-full py-2 bg-gray-100 text-gray-900 rounded-xl text-sm font-bold hover:bg-gray-200 transition-all">
+              <Link 
+                to="/profile/edit"
+                className="w-full py-2 bg-gray-100 text-gray-900 rounded-xl text-sm font-bold hover:bg-gray-200 transition-all block text-center"
+              >
                 تعديل التفاصيل العامة
-              </button>
+              </Link>
             </div>
 
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">الصور</h2>
-                <button className="text-sm text-emerald-600 font-bold hover:underline">عرض الكل</button>
+                <button onClick={() => setActiveTab('photos')} className="text-sm text-emerald-600 font-bold hover:underline">عرض الكل</button>
               </div>
               <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
+                {posts.filter(p => p.post_media && p.post_media.length > 0).slice(0, 9).map((post, i) => (
                   <img 
-                    key={i}
-                    src={`https://picsum.photos/seed/photo${i}/200/200`} 
+                    key={post.id}
+                    src={post.post_media[0].url} 
                     className="aspect-square rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
                     alt="User photo"
+                    onClick={() => navigate(`/community/post/${post.id}`)}
                     referrerPolicy="no-referrer"
                   />
                 ))}
+                {posts.filter(p => p.post_media && p.post_media.length > 0).length === 0 && (
+                  <div className="col-span-3 py-4 text-center text-xs text-gray-400">لا توجد صور بعد</div>
+                )}
               </div>
             </div>
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-bold text-gray-900">الأصدقاء</h2>
-                <button className="text-sm text-emerald-600 font-bold hover:underline">عرض الكل</button>
+                <button onClick={() => setActiveTab('friends')} className="text-sm text-emerald-600 font-bold hover:underline">عرض الكل</button>
               </div>
               <p className="text-xs text-gray-500 mb-4">{user.friendsCount} صديق</p>
               <div className="grid grid-cols-3 gap-3">
-                {[...Array(9)].map((_, i) => (
-                  <div key={i} className="space-y-1 cursor-pointer group">
+                {friends.slice(0, 9).map((friend, i) => (
+                  <div key={friend.id} className="space-y-1 cursor-pointer group" onClick={() => navigate(`/community/profile/${friend.profiles?.id}`)}>
                     <img 
-                      src={`https://picsum.photos/seed/friend-grid${i}/200/200`} 
+                      src={friend.profiles?.avatar_url || `https://picsum.photos/seed/friend-grid${i}/200/200`} 
                       className="aspect-square rounded-lg object-cover group-hover:opacity-90 transition-opacity"
                       alt="Friend"
                       referrerPolicy="no-referrer"
                     />
-                    <p className="text-[10px] font-bold text-gray-900 truncate">صديق {i + 1}</p>
+                    <p className="text-[10px] font-bold text-gray-900 truncate">{friend.profiles?.full_name || "صديق"}</p>
                   </div>
                 ))}
+                {friends.length === 0 && (
+                  <div className="col-span-3 py-4 text-center text-xs text-gray-400">لا يوجد أصدقاء بعد</div>
+                )}
               </div>
             </div>
           </div>
@@ -332,7 +410,45 @@ export default function ProfilePage() {
                   className="space-y-6"
                 >
                   {/* Create Post */}
-                  <CreatePost />
+                  {isOwnProfile && <CreatePost />}
+
+                  {/* Friend Requests (if any) */}
+                  {isOwnProfile && friendRequests.length > 0 && (
+                    <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h2 className="text-lg font-bold text-gray-900">طلبات الصداقة</h2>
+                        <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-bold">{friendRequests.length}</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {friendRequests.map((request) => (
+                          <div key={request.id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                            <img 
+                              src={request.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${request.profiles?.full_name}`} 
+                              className="w-12 h-12 rounded-full object-cover"
+                              alt="Requester"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-bold text-gray-900 truncate">{request.profiles?.full_name}</p>
+                              <div className="flex gap-2 mt-2">
+                                <button 
+                                  onClick={() => handleAcceptRequest(request.id)}
+                                  className="flex-1 py-1 bg-emerald-600 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-700 transition-all"
+                                >
+                                  قبول
+                                </button>
+                                <button 
+                                  onClick={() => handleRejectRequest(request.id)}
+                                  className="flex-1 py-1 bg-gray-200 text-gray-700 rounded-lg text-[10px] font-bold hover:bg-gray-300 transition-all"
+                                >
+                                  رفض
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Post Filters Bar */}
                   <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
@@ -393,29 +509,33 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                    {[...Array(16)].map((_, i) => (
+                    {posts.filter(p => p.post_media && p.post_media.length > 0).map((post, i) => (
                       <div 
-                        key={i} 
+                        key={post.id} 
+                        onClick={() => navigate(`/community/post/${post.id}`)}
                         className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm hover:shadow-md transition-all duration-300"
                       >
                         <img 
-                          src={`https://picsum.photos/seed/all-photo${i}/600/600`} 
+                          src={post.post_media[0].url} 
                           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                           alt="Gallery"
                           referrerPolicy="no-referrer"
                         />
                         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors duration-300 flex items-center justify-center">
                           <div className="opacity-0 group-hover:opacity-100 transform translate-y-4 group-hover:translate-y-0 transition-all duration-300 flex gap-2">
-                            <button className="p-2 bg-white/90 rounded-full text-gray-900 hover:bg-white shadow-lg">
+                            <div className="p-2 bg-white/90 rounded-full text-gray-900 hover:bg-white shadow-lg">
                               <Heart size={16} />
-                            </button>
-                            <button className="p-2 bg-white/90 rounded-full text-gray-900 hover:bg-white shadow-lg">
+                            </div>
+                            <div className="p-2 bg-white/90 rounded-full text-gray-900 hover:bg-white shadow-lg">
                               <MessageCircle size={16} />
-                            </button>
+                            </div>
                           </div>
                         </div>
                       </div>
                     ))}
+                    {posts.filter(p => p.post_media && p.post_media.length > 0).length === 0 && (
+                      <div className="col-span-full py-12 text-center text-gray-400">لا توجد صور لعرضها</div>
+                    )}
                   </div>
 
                   <div className="mt-8 pt-6 border-t border-gray-100">
@@ -464,18 +584,13 @@ export default function ProfilePage() {
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    {[
-                      { title: "جولة في الحي الثالث", views: "1.2K", duration: "03:45", seed: "v1" },
-                      { title: "افتتاح الحديقة الجديدة", views: "850", duration: "01:20", seed: "v2" },
-                      { title: "نصائح لسكان كفراوي", views: "2.4K", duration: "05:10", seed: "v3" },
-                      { title: "فعاليات يوم اليتيم", views: "3.1K", duration: "10:30", seed: "v4" },
-                    ].map((video, i) => (
-                      <div key={i} className="group cursor-pointer space-y-3">
+                    {posts.filter(p => p.post_media && p.post_media.some((m: any) => m.media_type === 'video')).map((post, i) => (
+                      <div key={post.id} className="group cursor-pointer space-y-3" onClick={() => navigate(`/community/post/${post.id}`)}>
                         <div className="relative aspect-video rounded-2xl overflow-hidden bg-gray-100 shadow-sm group-hover:shadow-md transition-all">
                           <img 
-                            src={`https://picsum.photos/seed/${video.seed}/800/450`} 
+                            src={post.post_media.find((m: any) => m.media_type === 'video').url + '#t=1'} 
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                            alt={video.title}
+                            alt="Video thumbnail"
                             referrerPolicy="no-referrer"
                           />
                           <div className="absolute inset-0 bg-black/20 group-hover:bg-black/40 transition-colors flex items-center justify-center">
@@ -483,21 +598,20 @@ export default function ProfilePage() {
                               <Play size={24} fill="currentColor" className="ml-1" />
                             </div>
                           </div>
-                          <div className="absolute bottom-3 left-3 px-2 py-1 bg-black/60 backdrop-blur-md rounded-lg text-white text-[10px] font-bold flex items-center gap-1">
-                            <Clock size={10} />
-                            <span>{video.duration}</span>
-                          </div>
                         </div>
                         <div className="px-1">
-                          <h3 className="font-bold text-gray-900 text-sm group-hover:text-emerald-600 transition-colors line-clamp-1">{video.title}</h3>
+                          <h3 className="font-bold text-gray-900 text-sm group-hover:text-emerald-600 transition-colors line-clamp-1">{post.content || "فيديو"}</h3>
                           <div className="flex items-center gap-2 mt-1 text-xs text-gray-500">
-                            <span>{video.views} مشاهدة</span>
+                            <span>{post.likes_count} إعجاب</span>
                             <span>•</span>
-                            <span>منذ ٣ أيام</span>
+                            <span>{new Date(post.created_at).toLocaleDateString('ar-EG')}</span>
                           </div>
                         </div>
                       </div>
                     ))}
+                    {posts.filter(p => p.post_media && p.post_media.some((m: any) => m.media_type === 'video')).length === 0 && (
+                      <div className="col-span-full py-12 text-center text-gray-400">لا توجد فيديوهات لعرضها</div>
+                    )}
                   </div>
                 </motion.div>
               )}

@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { 
   MoreHorizontal, 
   Globe, 
@@ -10,12 +10,15 @@ import {
   Laugh, 
   Meh,
   MapPin,
-  Smile
+  Smile,
+  Trash2,
+  Flag
 } from "lucide-react";
 import { Badge, TrustLevel } from "./Badge";
 import { cn } from "@/src/utils/cn";
+import { toast } from "sonner";
 
-import { Post } from "@/src/modules/community/communityService";
+import { Post, communityService } from "@/src/modules/community/communityService";
 import { useCommunity } from "@/src/context/CommunityContext";
 import { useAuth } from "@/src/context/AuthContext";
 
@@ -27,9 +30,51 @@ interface PostCardProps {
 export default function PostCard({ post }: PostCardProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { likePost, unlikePost } = useCommunity();
+  const { likePost, unlikePost, deletePost } = useCommunity();
   const [showReactions, setShowReactions] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [reaction, setReaction] = useState<string | null>(post.user_reaction || null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const viewStartTimeRef = useRef<number | null>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!user || !post.id) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // Start tracking view time
+            viewStartTimeRef.current = Date.now();
+          } else if (viewStartTimeRef.current) {
+            // Post left view, calculate watch time and track
+            const watchTime = (Date.now() - viewStartTimeRef.current) / 1000;
+            if (watchTime > 0.5) { // Only track if viewed for more than 0.5s
+              communityService.trackView(user.id, post.id, watchTime);
+            }
+            viewStartTimeRef.current = null;
+          }
+        });
+      },
+      { threshold: 0.5 } // 50% of the card must be visible
+    );
+
+    if (cardRef.current) {
+      observer.observe(cardRef.current);
+    }
+
+    return () => {
+      if (viewStartTimeRef.current && user) {
+        const watchTime = (Date.now() - viewStartTimeRef.current) / 1000;
+        if (watchTime > 0.5) {
+          communityService.trackView(user.id, post.id, watchTime);
+        }
+      }
+      observer.disconnect();
+    };
+  }, [user?.id, post.id]);
 
   useEffect(() => {
     setReaction(post.user_reaction || null);
@@ -37,6 +82,22 @@ export default function PostCard({ post }: PostCardProps) {
 
   const handlePostClick = () => {
     navigate(`/community/post/${post.id}`);
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm('هل أنت متأكد من حذف هذا المنشور؟')) return;
+    
+    setIsDeleting(true);
+    try {
+      await deletePost(post.id);
+      toast.success('تم حذف المنشور بنجاح');
+    } catch (err) {
+      console.error(err);
+      toast.error('فشل حذف المنشور');
+    } finally {
+      setIsDeleting(false);
+      setShowMoreMenu(false);
+    }
   };
 
   const handleReaction = async (reactionKey: string) => {
@@ -61,7 +122,12 @@ export default function PostCard({ post }: PostCardProps) {
   };
 
   const handleShare = async () => {
+    if (isSharing) return;
+    setIsSharing(true);
     try {
+      if (user) {
+        await communityService.sharePost(user.id, post.id);
+      }
       if (navigator.share) {
         await navigator.share({
           title: 'منشور من مجتمع كفراوي',
@@ -74,6 +140,8 @@ export default function PostCard({ post }: PostCardProps) {
       }
     } catch (error) {
       console.error('Error sharing:', error);
+    } finally {
+      setIsSharing(false);
     }
   };
 
@@ -87,29 +155,43 @@ export default function PostCard({ post }: PostCardProps) {
   const currentReaction = reactions.find(r => r.key === reaction) || reactions[0];
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+    <div 
+      ref={cardRef}
+      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4"
+    >
       {/* Post Header */}
       <div className="p-4 flex items-center justify-between">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={handlePostClick}>
-          <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold overflow-hidden">
+        <div className="flex items-center gap-3">
+          <Link 
+            to={`/profile/${post.user_id}`}
+            className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold overflow-hidden hover:opacity-80 transition-opacity"
+          >
             {post.profiles?.avatar_url ? (
               <img src={post.profiles.avatar_url} alt={post.profiles.full_name} className="w-full h-full object-cover" />
             ) : (
               post.profiles?.full_name?.charAt(0) || 'U'
             )}
-          </div>
+          </Link>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm font-bold text-gray-900">{post.profiles?.full_name || 'مستخدم'}</h3>
+              <Link to={`/profile/${post.user_id}`}>
+                <h3 className="text-sm font-bold text-gray-900 hover:text-emerald-600 transition-colors">
+                  {post.profiles?.full_name || 'مستخدم'}
+                </h3>
+              </Link>
               <Badge level="trusted" />
-              {post.feeling && (
+              {post.city && (
                 <span className="text-xs text-gray-500 flex items-center gap-1">
-                  يشعر بـ <span className="font-bold">{post.feeling}</span> <Smile size={12} className="text-yellow-500" />
+                  في <span className="font-bold">{post.city}</span> <MapPin size={12} className="text-orange-500" />
                 </span>
               )}
-              {post.location && (
-                <span className="text-xs text-gray-500 flex items-center gap-1">
-                  في <span className="font-bold">{post.location}</span> <MapPin size={12} className="text-orange-500" />
+              {post.category && post.category !== 'trending' && (
+                <span className="text-[10px] bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-bold">
+                  {post.category === 'neighborhood' ? 'الحي' : 
+                   post.category === 'market' ? 'السوق' : 
+                   post.category === 'services' ? 'الخدمات' : 
+                   post.category === 'qa' ? 'الأسئلة' : 
+                   post.category === 'ads' ? 'الإعلانات' : post.category}
                 </span>
               )}
             </div>
@@ -120,9 +202,40 @@ export default function PostCard({ post }: PostCardProps) {
             </div>
           </div>
         </div>
-        <button className="p-2 text-gray-400 hover:bg-gray-50 rounded-full transition-colors">
-          <MoreHorizontal size={20} />
-        </button>
+        <div className="relative">
+          <button 
+            onClick={() => setShowMoreMenu(!showMoreMenu)}
+            className="p-2 text-gray-400 hover:bg-gray-50 rounded-full transition-colors"
+          >
+            <MoreHorizontal size={20} />
+          </button>
+
+          {showMoreMenu && (
+            <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-20 animate-in fade-in zoom-in-95 duration-100">
+              {user?.id === post.user_id ? (
+                <button 
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                >
+                  <Trash2 size={16} />
+                  <span>{isDeleting ? 'جاري الحذف...' : 'حذف المنشور'}</span>
+                </button>
+              ) : (
+                <button 
+                  onClick={() => {
+                    toast.info('تم إرسال البلاغ، شكراً لمساعدتنا في الحفاظ على المجتمع');
+                    setShowMoreMenu(false);
+                  }}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  <Flag size={16} />
+                  <span>إبلاغ عن المنشور</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Post Content */}
@@ -132,19 +245,19 @@ export default function PostCard({ post }: PostCardProps) {
         </div>
       )}
 
-      {post.post_media && post.post_media.length > 0 && (
-        <div className="relative aspect-video bg-gray-100 cursor-pointer" onClick={handlePostClick}>
-          {post.post_media[0].media_type === 'video' ? (
+      {post.media_url && (
+        <div className="relative bg-gray-100 cursor-pointer flex justify-center items-center overflow-hidden max-h-[70vh]" onClick={handlePostClick}>
+          {post.media_url.endsWith('.mp4') || post.media_url.includes('video') ? (
             <video 
-              src={post.post_media[0].url} 
+              src={post.media_url} 
               controls 
-              className="w-full h-full object-cover"
+              className="max-w-full max-h-[70vh] object-contain"
             />
           ) : (
             <img 
-              src={post.post_media[0].url} 
+              src={post.media_url} 
               alt="Post content" 
-              className="w-full h-full object-cover"
+              className="max-w-full max-h-[70vh] object-contain"
               referrerPolicy="no-referrer"
             />
           )}
@@ -210,10 +323,11 @@ export default function PostCard({ post }: PostCardProps) {
 
         <button 
           onClick={handleShare}
-          className="flex-1 flex items-center justify-center gap-2 p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors"
+          disabled={isSharing}
+          className="flex-1 flex items-center justify-center gap-2 p-2 text-gray-500 hover:bg-gray-50 rounded-xl transition-colors disabled:opacity-50"
         >
           <Share2 size={20} />
-          <span className="text-xs font-bold">مشاركة</span>
+          <span className="text-xs font-bold">{isSharing ? 'جاري المشاركة...' : 'مشاركة'}</span>
         </button>
       </div>
     </div>

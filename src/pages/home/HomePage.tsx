@@ -5,6 +5,7 @@ import {
   Bell, 
   MessageCircle, 
   User, 
+  Settings,
   ShoppingBag, 
   Briefcase, 
   Users, 
@@ -32,6 +33,9 @@ import { useApp } from "@/src/context/AppContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { authService } from "@/src/modules/auth/authService";
 import { supabase } from "@/src/lib/supabase";
+import { useCommunity } from "@/src/context/CommunityContext";
+import CommunityPostCard from "@/src/components/community/PostCard";
+import CreatePost from "@/src/components/community/CreatePost";
 
 // --- Mock Data ---
 
@@ -140,11 +144,11 @@ const Header = () => {
                 ٣
               </span>
             </button>
-            <button className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
-              <MessageCircle size={22} />
-            </button>
+            <Link to="/settings" className="w-10 h-10 flex items-center justify-center text-gray-500 hover:bg-gray-50 rounded-xl transition-all">
+              <Settings size={22} />
+            </Link>
             <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border-2 border-gray-100 shadow-sm hover:border-[#1877F2] transition-all">
-              <img src={user.avatar_url || "https://picsum.photos/seed/me/100/100"} className="w-full h-full object-cover" alt="Profile" referrerPolicy="no-referrer" />
+              <img src={profile?.avatar_url || "https://picsum.photos/seed/me/100/100"} className="w-full h-full object-cover" alt="Profile" referrerPolicy="no-referrer" />
             </Link>
           </>
         ) : (
@@ -316,7 +320,7 @@ const FeaturedJobsSection = () => {
   );
 };
 
-const PostCard = ({ post }: any) => (
+const MockPostCard = ({ post }: any) => (
   <div className="bg-white rounded-[32px] shadow-sm border border-gray-50 overflow-hidden mb-6">
     <div className="p-4 flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -485,10 +489,6 @@ const BottomNav = () => {
   );
 };
 
-import Feed from "@/src/modules/community/Feed";
-
-// ... (rest of the imports)
-
 const KafrawiGoSection = () => {
   const navigate = useNavigate();
   return (
@@ -530,6 +530,8 @@ const KafrawiGoSection = () => {
 
 export default function HomePage() {
   const navigate = useNavigate();
+  const { posts } = useCommunity();
+
   return (
     <div className="min-h-screen bg-[#F0F2F5] pb-28">
       <Header />
@@ -543,17 +545,33 @@ export default function HomePage() {
         {/* New Jobs Section */}
         <FeaturedJobsSection />
 
+        {/* Create Post Section */}
+        <section className="px-4 mb-6">
+          <CreatePost />
+        </section>
+
         {/* Dynamic Feed */}
         <section className="px-4 space-y-2">
           <div className="flex items-center justify-between mb-4 px-2">
             <h2 className="text-xl font-black text-[#050505]">اكتشف كفراوي</h2>
-            <div className="flex items-center gap-1 text-[#1877F2] cursor-pointer">
-              <span className="text-xs font-black">تخصيص</span>
+            <Link to="/community" className="flex items-center gap-1 text-[#1877F2] cursor-pointer hover:underline">
+              <span className="text-xs font-black">عرض الكل</span>
               <ChevronRight size={16} />
-            </div>
+            </Link>
           </div>
 
-          <Feed />
+          <div className="space-y-6">
+            {posts && posts.length > 0 && posts.slice(0, 5).map((post) => (
+              <CommunityPostCard key={post.id} post={post} />
+            ))}
+            {FEED_POSTS.map((post) => {
+              if (post.type === 'community') return <MockPostCard key={post.id} post={post} />;
+              if (post.type === 'marketplace') return <ProductCard key={post.id} product={post} />;
+              if (post.type === 'job') return <JobCard key={post.id} job={post} />;
+              if (post.type === 'service') return <ServiceCard key={post.id} service={post} />;
+              return null;
+            })}
+          </div>
         </section>
 
         {/* Recommendations / Trending */}

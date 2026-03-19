@@ -17,7 +17,8 @@ import {
   Heart,
   LayoutGrid,
   Home,
-  List as ListIcon
+  List as ListIcon,
+  Building2
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useJobs } from "@/src/context/JobsContext";
@@ -33,12 +34,21 @@ const CATEGORIES = [
 
 export default function JobsHomePage() {
   const navigate = useNavigate();
-  const { jobs } = useJobs();
+  const { jobs, searchJobs, savedJobs, saveJob } = useJobs();
   const [activeCategory, setActiveCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
-  const featuredJobs = jobs.filter(j => j.isFeatured);
-  const recentJobs = jobs.filter(j => !j.isFeatured);
+  const handleSearch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await searchJobs(searchQuery);
+  };
+
+  const filteredJobs = activeCategory === "all" 
+    ? jobs 
+    : jobs.filter(j => j.category.toLowerCase() === activeCategory.toLowerCase());
+
+  const featuredJobs = filteredJobs.filter(j => j.isFeatured);
+  const recentJobs = filteredJobs.filter(j => !j.isFeatured);
 
   return (
     <div className="min-h-screen bg-[#F0F2F5] pb-24">
@@ -70,14 +80,16 @@ export default function JobsHomePage() {
       <main className="max-w-xl mx-auto p-6 space-y-8">
         {/* Search Bar */}
         <section className="relative group">
-          <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#1877F2] transition-colors" size={20} />
-          <input 
-            type="text" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="ابحث عن وظيفة، شركة، أو تخصص..." 
-            className="w-full pr-12 pl-12 py-4 bg-white border-none rounded-[24px] text-sm font-bold focus:ring-2 focus:ring-[#1877F2] outline-none transition-all placeholder:text-gray-400 shadow-sm"
-          />
+          <form onSubmit={handleSearch}>
+            <Search className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#1877F2] transition-colors" size={20} />
+            <input 
+              type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="ابحث عن وظيفة، شركة، أو تخصص..." 
+              className="w-full pr-12 pl-12 py-4 bg-white border-none rounded-[24px] text-sm font-bold focus:ring-2 focus:ring-[#1877F2] outline-none transition-all placeholder:text-gray-400 shadow-sm"
+            />
+          </form>
           <button onClick={() => navigate("/jobs/search")} className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-gray-50 text-gray-400 rounded-xl hover:text-[#1877F2] transition-all">
             <Filter size={20} />
           </button>
@@ -156,20 +168,20 @@ export default function JobsHomePage() {
         <section className="grid grid-cols-2 gap-4">
           <button onClick={() => navigate("/jobs/dashboard")} className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-50 flex items-center gap-4 group hover:shadow-md transition-all">
             <div className="w-12 h-12 bg-blue-50 text-[#1877F2] rounded-2xl flex items-center justify-center group-hover:scale-110 transition-all">
-              <Plus size={24} />
+              <Briefcase size={24} />
             </div>
             <div className="text-right">
               <h4 className="text-sm font-black text-[#050505]">طلباتي</h4>
               <p className="text-[10px] font-bold text-gray-400">متابعة حالة التقديم</p>
             </div>
           </button>
-          <button onClick={() => navigate("/jobs/cv-builder")} className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-50 flex items-center gap-4 group hover:shadow-md transition-all">
+          <button onClick={() => navigate("/jobs/employer")} className="bg-white p-6 rounded-[32px] shadow-sm border border-gray-50 flex items-center gap-4 group hover:shadow-md transition-all">
             <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-all">
-              <Briefcase size={24} />
+              <Building2 size={24} />
             </div>
             <div className="text-right">
-              <h4 className="text-sm font-black text-[#050505]">السيرة الذاتية</h4>
-              <p className="text-[10px] font-bold text-gray-400">أنشئ سيرتك الآن</p>
+              <h4 className="text-sm font-black text-[#050505]">للشركات</h4>
+              <p className="text-[10px] font-bold text-gray-400">لوحة تحكم التوظيف</p>
             </div>
           </button>
         </section>
@@ -211,8 +223,17 @@ export default function JobsHomePage() {
                   </div>
                 </div>
                 <div className="flex flex-col items-end gap-2">
-                  <button className="p-2 text-gray-300 hover:text-red-500 transition-all">
-                    <Heart size={18} />
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      saveJob(job.id);
+                    }}
+                    className={cn(
+                      "p-2 transition-all",
+                      savedJobs.includes(job.id) ? "text-red-500" : "text-gray-300 hover:text-red-500"
+                    )}
+                  >
+                    <Heart size={18} fill={savedJobs.includes(job.id) ? "currentColor" : "none"} />
                   </button>
                   <span className="text-xs font-black text-emerald-600">{job.salary || "غير محدد"}</span>
                 </div>

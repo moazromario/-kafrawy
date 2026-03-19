@@ -96,10 +96,10 @@ export default function ProductDetailPage() {
           key={activeImage}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="w-full h-full"
+          className="w-full h-full flex justify-center items-center"
           onClick={() => setShowLightbox(true)}
         >
-          <img src={images[activeImage]} className="w-full h-full object-cover" alt={product.name} referrerPolicy="no-referrer" />
+          <img src={images[activeImage]} className="max-w-full max-h-full object-contain" alt={product.name} referrerPolicy="no-referrer" />
         </motion.div>
         
         {/* Thumbnails */}

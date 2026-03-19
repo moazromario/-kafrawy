@@ -1,9 +1,10 @@
 import React, { useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Image, Video, MapPin, Smile, Loader2, X } from "lucide-react";
+import { Image, Video, MapPin, Smile, Loader2, X, ShoppingBag, Wrench, HelpCircle, Megaphone, Tag } from "lucide-react";
 import { useCommunity } from "@/src/context/CommunityContext";
 import { useAuth } from "@/src/context/AuthContext";
 import { communityService } from "@/src/modules/community/communityService";
+import { cn } from "@/src/utils/cn";
 
 export default function CreatePost() {
   const { addPost } = useCommunity();
@@ -16,11 +17,22 @@ export default function CreatePost() {
   const [mediaType, setMediaType] = useState<'image' | 'video' | undefined>(undefined);
   const [location, setLocation] = useState<string | undefined>(undefined);
   const [feeling, setFeeling] = useState<string | undefined>(undefined);
+  const [category, setCategory] = useState<string>('trending');
 
   const [showLocationInput, setShowLocationInput] = useState(false);
   const [showFeelingInput, setShowFeelingInput] = useState(false);
+  const [showCategorySelect, setShowCategorySelect] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const categories = [
+    { id: 'trending', label: 'عام', icon: Smile },
+    { id: 'neighborhood', label: 'الحي', icon: MapPin },
+    { id: 'market', label: 'السوق', icon: ShoppingBag },
+    { id: 'services', label: 'الخدمات', icon: Wrench },
+    { id: 'qa', label: 'الأسئلة', icon: HelpCircle },
+    { id: 'ads', label: 'الإعلانات', icon: Megaphone },
+  ];
 
   if (!user) {
     return (
@@ -52,7 +64,11 @@ export default function CreatePost() {
         }
       }
 
-      await addPost(content, finalMediaUrl, mediaType, location, feeling);
+      const newPost = await addPost(content, finalMediaUrl, category, location);
+      
+      if (user && newPost?.id) {
+        communityService.trackEvent(user.id, newPost.id, 'create');
+      }
       
       setContent("");
       setMediaFile(null);
@@ -60,9 +76,9 @@ export default function CreatePost() {
       setMediaPreviewUrl(undefined);
       setMediaType(undefined);
       setLocation(undefined);
-      setFeeling(undefined);
+      setCategory('trending');
       setShowLocationInput(false);
-      setShowFeelingInput(false);
+      setShowCategorySelect(false);
     } catch (err) {
       console.error(err);
       alert(err instanceof Error ? err.message : 'حدث خطأ أثناء النشر');
@@ -114,7 +130,7 @@ export default function CreatePost() {
           
           {/* Media Preview */}
           {mediaPreviewUrl && (
-            <div className="relative rounded-xl overflow-hidden bg-gray-100 border border-gray-200">
+            <div className="relative rounded-xl overflow-hidden bg-gray-100 border border-gray-200 flex justify-center items-center">
               <button 
                 onClick={clearMedia}
                 className="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full hover:bg-black/70 transition-colors z-10"
@@ -122,9 +138,9 @@ export default function CreatePost() {
                 <X size={16} />
               </button>
               {mediaType === 'image' ? (
-                <img src={mediaPreviewUrl} alt="Upload preview" className="w-full max-h-[300px] object-cover" />
+                <img src={mediaPreviewUrl} alt="Upload preview" className="max-w-full max-h-[300px] object-contain" />
               ) : (
-                <video src={mediaPreviewUrl} controls className="w-full max-h-[300px] object-cover" />
+                <video src={mediaPreviewUrl} controls className="max-w-full max-h-[300px] object-contain" />
               )}
             </div>
           )}
@@ -162,6 +178,27 @@ export default function CreatePost() {
               <button onClick={() => { setShowFeelingInput(false); setFeeling(undefined); }} className="text-gray-400 hover:text-gray-600">
                 <X size={16} />
               </button>
+            </div>
+          )}
+
+          {/* Category Selection */}
+          {showCategorySelect && (
+            <div className="flex flex-wrap gap-2 p-2 bg-gray-50 rounded-xl border border-gray-200">
+              {categories.map((cat) => (
+                <button
+                  key={cat.id}
+                  onClick={() => setCategory(cat.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
+                    category === cat.id 
+                      ? "bg-emerald-600 text-white shadow-sm" 
+                      : "bg-white text-gray-500 border border-gray-100 hover:bg-gray-50"
+                  )}
+                >
+                  <cat.icon size={12} />
+                  {cat.label}
+                </button>
+              ))}
             </div>
           )}
         </div>
@@ -216,6 +253,12 @@ export default function CreatePost() {
           label="شعور" 
           color="text-yellow-500" 
           onClick={() => setShowFeelingInput(true)} 
+        />
+        <PostOption 
+          icon={Tag} 
+          label="تصنيف" 
+          color="text-indigo-500" 
+          onClick={() => setShowCategorySelect(!showCategorySelect)} 
         />
       </div>
 

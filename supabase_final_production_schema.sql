@@ -291,7 +291,7 @@ CREATE POLICY "Users can view own wallet" ON wallets FOR SELECT USING (auth.uid(
 
 ALTER TABLE posts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can view posts" ON posts FOR SELECT USING (true);
-CREATE POLICY "Users can create posts" ON posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "users insert posts" ON posts FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users can update own posts" ON posts FOR UPDATE USING (auth.uid() = user_id);
 
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
@@ -299,3 +299,8 @@ CREATE POLICY "Users can view their own messages" ON messages FOR SELECT USING (
 CREATE POLICY "Users can send messages" ON messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
 
 -- (Add more policies as needed for other tables)
+
+-- 11. PERFORMANCE INDEXES
+CREATE INDEX idx_posts_created_at ON posts(created_at);
+CREATE INDEX idx_likes_post ON likes(post_id);
+CREATE INDEX idx_comments_post ON comments(post_id);

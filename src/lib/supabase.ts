@@ -7,4 +7,61 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Supabase URL or Anon Key is missing. Please check your environment variables.');
 }
 
-export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '');
+let supabaseClient: any = null;
+
+if (supabaseUrl && supabaseAnonKey) {
+  try {
+    supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
+  } catch (e) {
+    console.error('Failed to initialize Supabase client:', e);
+  }
+}
+
+// Create a dummy client if initialization failed to prevent app crash
+export const supabase = supabaseClient || {
+  storage: {
+    from: () => ({
+      upload: async () => ({ error: new Error('Supabase not configured') }),
+      getPublicUrl: () => ({ data: { publicUrl: '' } })
+    })
+  },
+  auth: {
+    onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    getSession: async () => ({ data: { session: null }, error: null }),
+    getUser: async () => ({ data: { user: null }, error: null }),
+    signOut: async () => ({ error: null }),
+    signInWithPassword: async () => ({ data: { user: null, session: null }, error: new Error('Supabase not configured') }),
+    signUp: async () => ({ data: { user: null, session: null }, error: new Error('Supabase not configured') }),
+  },
+  from: () => ({
+    select: () => ({
+      eq: () => ({
+        single: async () => ({ data: null, error: new Error('Supabase not configured') }),
+        order: () => ({
+          range: async () => ({ data: [], error: new Error('Supabase not configured') })
+        })
+      }),
+      order: () => ({
+        range: async () => ({ data: [], error: new Error('Supabase not configured') })
+      })
+    }),
+    insert: () => ({
+      select: () => ({
+        single: async () => ({ data: null, error: new Error('Supabase not configured') })
+      })
+    }),
+    upsert: () => ({
+      select: () => ({
+        single: async () => ({ data: null, error: new Error('Supabase not configured') })
+      })
+    }),
+    update: () => ({
+      eq: () => ({
+        select: () => ({
+          single: async () => ({ data: null, error: new Error('Supabase not configured') })
+        })
+      })
+    })
+  }),
+  rpc: async () => ({ data: null, error: new Error('Supabase not configured') })
+} as any;

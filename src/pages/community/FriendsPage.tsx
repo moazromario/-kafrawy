@@ -185,16 +185,6 @@ export default function FriendsPage() {
               <section>
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-xl font-bold text-gray-900">كل الأصدقاء</h2>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" size={14} />
-                      <input 
-                        type="text" 
-                        placeholder="بحث في الأصدقاء..."
-                        className="pr-9 pl-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-                      />
-                    </div>
-                  </div>
                 </div>
                 {friends.length === 0 ? (
                   <div className="bg-white rounded-2xl p-8 text-center text-gray-500 shadow-sm border border-gray-100">

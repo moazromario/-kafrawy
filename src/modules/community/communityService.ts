@@ -1,50 +1,32 @@
-import { supabase } from '@/src/lib/supabase';
+import { supabase } from '../../lib/supabase';
 
 export interface Post {
   id: string;
   user_id: string;
-  page_id?: string;
-  group_id?: string;
   content: string;
-  privacy: 'public' | 'friends' | 'only_me' | 'custom';
-  feeling?: string;
-  activity?: string;
-  location?: string;
-  background_color?: string;
-  is_pinned: boolean;
-  is_hidden: boolean;
-  likes_count: number;
-  comments_count: number;
-  shares_count: number;
+  media_url?: string;
+  category?: string;
+  city?: string;
   created_at: string;
-  updated_at?: string;
-  user_reaction?: string | null;
+  likes_count?: number;
+  comments_count?: number;
+  shares_count?: number;
   profiles?: {
     full_name: string;
     avatar_url: string;
   };
-  post_media?: PostMedia[];
-}
-
-export interface PostMedia {
-  id: string;
-  url: string;
-  media_type: 'image' | 'video' | 'document';
-  display_order: number;
+  user_reaction?: boolean;
 }
 
 export interface Comment {
   id: string;
   post_id: string;
-  parent_id?: string;
   user_id: string;
   content: string;
+  parent_id?: string;
   media_url?: string;
-  likes_count: number;
-  replies_count: number;
   created_at: string;
-  updated_at?: string;
-  user_reaction?: string | null;
+  deleted_at?: string;
   profiles?: {
     full_name: string;
     avatar_url: string;
@@ -52,494 +34,515 @@ export interface Comment {
 }
 
 export const communityService = {
-  // --- Media ---
-  async uploadMedia(file: File, type: 'image' | 'video' | 'document'): Promise<{ url: string | null; error: any }> {
+  // --- Media Upload ---
+  async uploadMedia(file: File, type: 'image' | 'video' = 'image') {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `community/${fileName}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from('community_media')
+      .upload(filePath, file);
+
+    if (uploadError) return { url: null, error: uploadError };
+
+    const { data } = supabase.storage
+      .from('community_media')
+      .getPublicUrl(filePath);
+
+    return { url: data.publicUrl, error: null };
+  },
+
+  // --- Search ---
+  async search(query: string) {
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
-      const filePath = `${type}s/${fileName}`;
-
-      let { error: uploadError } = await supabase.storage
-        .from('community_media')
-        .upload(filePath, file);
-
-      if (uploadError && (uploadError.message?.includes('Bucket not found') || (uploadError as any).error === 'Bucket not found')) {
-        const { error: createError } = await supabase.storage.createBucket('community_media', {
-          public: true,
-          allowedMimeTypes: ['image/*', 'video/*', 'application/pdf'],
-        });
-        
-        if (!createError) {
-          const retry = await supabase.storage.from('community_media').upload(filePath, file);
-          uploadError = retry.error;
-        } else {
-          return { url: null, error: new Error('مساحة التخزين غير موجودة.') };
-        }
-      }
-
-      if (uploadError) {
-        return { url: null, error: new Error(uploadError.message || 'فشل رفع الوسائط.') };
-      }
-
-      const { data } = supabase.storage.from('community_media').getPublicUrl(filePath);
-      return { url: data.publicUrl, error: null };
-    } catch (error) {
-      return { url: null, error: error instanceof Error ? error : new Error('حدث خطأ غير متوقع.') };
+      const response = await fetch(`/api/posts/search?q=${encodeURIComponent(query)}`);
+      if (!response.ok) throw new Error('Failed to search');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
     }
   },
 
   // --- Posts ---
-  async getPosts(userId?: string, page = 1, pageSize = 10) {
-    const from = (page - 1) * pageSize;
-    const to = from + pageSize - 1;
-
-    const { data: postsData, error: postsError, count } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        profiles:user_id (full_name, avatar_url),
-        post_media (*)
-      `, { count: 'exact' })
-      .is('deleted_at', null)
-      .order('created_at', { ascending: false })
-      .range(from, to);
-
-    if (postsError || !postsData) {
-      return { data: null, error: postsError, count: 0 };
+  // --- Smart Feed (The Real Brain 🔥) ---
+  async getSmartFeed(userId: string) {
+    try {
+      const response = await fetch(`/api/feed?userId=${userId}&category=for_you`);
+      if (!response.ok) throw new Error('Failed to fetch smart feed');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
     }
-
-    let userReactions: Record<string, string> = {};
-    if (userId && postsData.length > 0) {
-      const postIds = postsData.map(p => p.id);
-      const { data: reactionsData } = await supabase
-        .from('reactions')
-        .select('post_id, reaction_type')
-        .eq('user_id', userId)
-        .in('post_id', postIds);
-        
-      if (reactionsData) {
-        userReactions = reactionsData.reduce((acc, reaction) => {
-          if (reaction.post_id) acc[reaction.post_id] = reaction.reaction_type;
-          return acc;
-        }, {} as Record<string, string>);
-      }
-    }
-
-    const postsWithReactions = postsData.map(post => ({
-      ...post,
-      user_reaction: userReactions[post.id] || null,
-      // Fallback for old UI components expecting media_url directly on post
-      media_url: post.post_media && post.post_media.length > 0 ? post.post_media[0].url : undefined,
-      media_type: post.post_media && post.post_media.length > 0 ? post.post_media[0].media_type : undefined,
-    }));
-
-    return { data: postsWithReactions, error: null, count: count || 0 };
   },
 
   async getPostById(postId: string, userId?: string) {
-    const { data, error } = await supabase
-      .from('posts')
-      .select(`
-        *,
-        profiles:user_id (full_name, avatar_url),
-        post_media (*)
-      `)
-      .eq('id', postId)
-      .single();
-
-    if (error || !data) return { data: null, error };
-
-    let userReaction = null;
-    if (userId) {
-      const { data: reactionData } = await supabase
-        .from('reactions')
-        .select('reaction_type')
-        .eq('user_id', userId)
-        .eq('post_id', postId)
-        .single();
-      if (reactionData) userReaction = reactionData.reaction_type;
+    try {
+      const response = await fetch(`/api/posts/${postId}`);
+      if (!response.ok) throw new Error('Post not found');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
     }
-
-    return { data: { ...data, user_reaction: userReaction }, error: null };
   },
 
-  async createPost(userId: string, content: string, mediaUrl?: string, mediaType?: 'image' | 'video', location?: string, feeling?: string, privacy: string = 'public') {
-    // 1. Create the post
-    const { data: post, error: postError } = await supabase
-      .from('posts')
-      .insert([{ user_id: userId, content, location, feeling, privacy }])
-      .select()
-      .single();
-
-    if (postError || !post) return { data: null, error: postError };
-
-    // 2. Add media if provided
-    if (mediaUrl && mediaType) {
-      await supabase
-        .from('post_media')
-        .insert([{ post_id: post.id, url: mediaUrl, media_type: mediaType }]);
+  async getPosts(userId?: string, page = 1, pageSize = 10, groupId?: string, pageId?: string, category?: string) {
+    try {
+      const params = new URLSearchParams();
+      if (userId) params.append('userId', userId);
+      if (groupId) params.append('groupId', groupId);
+      if (pageId) params.append('pageId', pageId);
+      if (category) params.append('category', category);
+      
+      const response = await fetch(`/api/feed?${params.toString()}`);
+      if (!response.ok) throw new Error('Failed to fetch feed');
+      const data = await response.json();
+      return { data, error: null, count: data.length };
+    } catch (error: any) {
+      return { data: null, error, count: 0 };
     }
-
-    return { data: post, error: null };
   },
 
-  async updatePost(userId: string, postId: string, content: string, location?: string, feeling?: string) {
-    const { data, error } = await supabase
-      .from('posts')
-      .update({ content, location, feeling })
-      .match({ id: postId, user_id: userId })
-      .select()
-      .single();
-    return { data, error };
+  async createPost(userId: string, content: string, mediaUrl?: string, category?: string, city?: string) {
+    try {
+      const response = await fetch('/api/posts/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, content, media_url: mediaUrl, category, city })
+      });
+      if (!response.ok) throw new Error('Failed to create post');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
   },
 
-  async deletePost(userId: string, postId: string) {
-    // Soft delete
-    const { error } = await supabase
-      .from('posts')
-      .update({ deleted_at: new Date().toISOString() })
-      .match({ id: postId, user_id: userId });
-    return { error };
+  async deletePost(postId: string) {
+    try {
+      const response = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete post');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
   },
 
   // --- Reactions ---
-  async reactToPost(userId: string, postId: string, reactionType: string = 'like') {
-    const { error } = await supabase
-      .from('reactions')
-      .upsert([{ user_id: userId, post_id: postId, reaction_type: reactionType }], { onConflict: 'user_id, post_id' });
-    return { error };
-  },
-
-  async removePostReaction(userId: string, postId: string) {
-    const { error } = await supabase
-      .from('reactions')
-      .delete()
-      .match({ user_id: userId, post_id: postId });
-    return { error };
+  async toggleLike(userId: string, postId: string, reactionType: string = 'like') {
+    try {
+      const response = await fetch('/api/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, post_id: postId, reaction_type: reactionType })
+      });
+      if (!response.ok) throw new Error('Failed to toggle like');
+      const data = await response.json();
+      return { data, error: null, liked: data.liked };
+    } catch (error: any) {
+      return { data: null, error, liked: false };
+    }
   },
 
   // --- Comments ---
-  async getComments(postId: string, userId?: string) {
-    const { data: commentsData, error: commentsError } = await supabase
-      .from('comments')
-      .select(`
-        *,
-        profiles:user_id (full_name, avatar_url)
-      `)
-      .eq('post_id', postId)
-      .is('parent_id', null) // Get top-level comments only for main view
-      .is('deleted_at', null)
-      .order('created_at', { ascending: true });
-
-    if (commentsError || !commentsData) {
-      return { data: null, error: commentsError };
+  async getComments(postId: string) {
+    try {
+      const response = await fetch(`/api/comments/${postId}`);
+      if (!response.ok) throw new Error('Failed to fetch comments');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
     }
-
-    let userReactions: Record<string, string> = {};
-    if (userId && commentsData.length > 0) {
-      const commentIds = commentsData.map(c => c.id);
-      const { data: reactionsData } = await supabase
-        .from('reactions')
-        .select('comment_id, reaction_type')
-        .eq('user_id', userId)
-        .in('comment_id', commentIds);
-        
-      if (reactionsData) {
-        userReactions = reactionsData.reduce((acc, reaction) => {
-          if (reaction.comment_id) acc[reaction.comment_id] = reaction.reaction_type;
-          return acc;
-        }, {} as Record<string, string>);
-      }
-    }
-
-    const commentsWithReactions = commentsData.map(comment => ({
-      ...comment,
-      user_reaction: userReactions[comment.id] || null
-    }));
-
-    return { data: commentsWithReactions, error: null };
   },
 
   async addComment(userId: string, postId: string, content: string, parentId?: string, mediaUrl?: string) {
-    const { data, error } = await supabase
-      .from('comments')
-      .insert([{ post_id: postId, user_id: userId, content, parent_id: parentId, media_url: mediaUrl }])
-      .select()
-      .single();
-    return { data, error };
+    try {
+      const response = await fetch('/api/comment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, post_id: postId, content, parent_id: parentId })
+      });
+      if (!response.ok) throw new Error('Failed to add comment');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
   },
 
-  async deleteComment(userId: string, commentId: string) {
-    const { error } = await supabase
-      .from('comments')
-      .update({ deleted_at: new Date().toISOString() })
-      .match({ id: commentId, user_id: userId });
-    return { error };
+  async deleteComment(commentId: string) {
+    try {
+      const response = await fetch(`/api/comments/${commentId}`, { method: 'DELETE' });
+      if (!response.ok) throw new Error('Failed to delete comment');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  },
+
+  // --- Shares & Events ---
+  async sharePost(userId: string, postId: string) {
+    try {
+      const response = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, post_id: postId })
+      });
+      if (!response.ok) throw new Error('Failed to share post');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  async trackView(userId: string, postId: string, watchTime: number = 0) {
+    return this.trackEvent(userId, postId, 'view', watchTime);
+  },
+
+  async trackEvent(userId: string, postId: string, eventType: string, watchTime: number = 0) {
+    try {
+      const response = await fetch('/api/track-event', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, post_id: postId, event_type: eventType, watch_time: watchTime })
+      });
+      if (!response.ok) throw new Error('Failed to track event');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+  async getGroups(userId?: string) {
+    try {
+      const response = await fetch('/api/groups');
+      if (!response.ok) throw new Error('Failed to fetch groups');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  async getGroupById(groupId: string) {
+    try {
+      const response = await fetch(`/api/groups/${groupId}`);
+      if (!response.ok) throw new Error('Failed to fetch group');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  async createGroup(userId: string, name: string, description: string, privacy: string = 'public', category: string = 'community', image?: string) {
+    try {
+      const response = await fetch('/api/groups/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creator_id: userId, name, description, category, privacy, image_url: image })
+      });
+      if (!response.ok) throw new Error('Failed to create group');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  async joinGroup(userId: string, groupId: string, isPrivate = false) {
+    try {
+      const response = await fetch('/api/groups/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, group_id: groupId, is_private: isPrivate })
+      });
+      if (!response.ok) throw new Error('Failed to join group');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  },
+
+  // --- Pages ---
+  async getPages(userId?: string) {
+    try {
+      const response = await fetch('/api/pages');
+      if (!response.ok) throw new Error('Failed to fetch pages');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  async getPageById(pageId: string) {
+    try {
+      const response = await fetch(`/api/pages/${pageId}`);
+      if (!response.ok) throw new Error('Failed to fetch page');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  async createPage(userId: string, name: string, description: string, category: string, coverUrl?: string, avatarUrl?: string) {
+    try {
+      const response = await fetch('/api/pages/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ creator_id: userId, name, description, category, cover_url: coverUrl, avatar_url: avatarUrl })
+      });
+      if (!response.ok) throw new Error('Failed to create page');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  async followPage(userId: string, pageId: string) {
+    try {
+      const response = await fetch('/api/pages/follow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, page_id: pageId })
+      });
+      if (!response.ok) throw new Error('Failed to follow page');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  },
+
+  async unfollowPage(userId: string, pageId: string) {
+    try {
+      const response = await fetch('/api/pages/unfollow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, page_id: pageId })
+      });
+      if (!response.ok) throw new Error('Failed to unfollow page');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  },
+
+  // --- Stories ---
+  async getStories() {
+    try {
+      const response = await fetch('/api/stories');
+      if (!response.ok) throw new Error('Failed to fetch stories');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  async createStory(userId: string, mediaUrl: string, mediaType: 'image' | 'video') {
+    try {
+      const response = await fetch('/api/stories/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, media_url: mediaUrl, media_type: mediaType })
+      });
+      if (!response.ok) throw new Error('Failed to create story');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  // --- Alerts ---
+  async getAlerts() {
+    try {
+      const response = await fetch('/api/alerts');
+      if (!response.ok) throw new Error('Failed to fetch alerts');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  async createAlert(userId: string, content: string, type: string = 'info') {
+    try {
+      const response = await fetch('/api/alerts/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, content, type })
+      });
+      if (!response.ok) throw new Error('Failed to create alert');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
   },
 
   // --- Friends ---
   async getFriends(userId: string) {
-    const { data, error } = await supabase
-      .from('friendships')
-      .select(`
-        *,
-        friend_profile:friend_id (id, full_name, avatar_url),
-        user_profile:user_id (id, full_name, avatar_url)
-      `)
-      .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
-      .eq('status', 'accepted');
-    return { data, error };
+    try {
+      const response = await fetch(`/api/friends/${userId}`);
+      if (!response.ok) throw new Error('Failed to fetch friends');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
   },
 
   async getFriendRequests(userId: string) {
-    const { data, error } = await supabase
-      .from('friendships')
-      .select(`
-        *,
-        profiles:user_id (id, full_name, avatar_url)
-      `)
-      .eq('friend_id', userId)
-      .eq('status', 'pending');
-    return { data, error };
+    try {
+      const response = await fetch(`/api/friends/requests/${userId}`);
+      if (!response.ok) throw new Error('Failed to fetch friend requests');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
   },
 
   async getFriendSuggestions(userId: string) {
-    // 1. Get current friendships
-    const { data: friendships } = await supabase
-      .from('friendships')
-      .select('user_id, friend_id')
-      .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
-      
-    const excludedIds = new Set([userId]);
-    if (friendships) {
-      friendships.forEach(f => {
-        excludedIds.add(f.user_id);
-        excludedIds.add(f.friend_id);
-      });
+    try {
+      const response = await fetch(`/api/users/search?q=`);
+      if (!response.ok) throw new Error('Failed to fetch suggestions');
+      const data = await response.json();
+      return { data: data.filter((u: any) => u.id !== userId), error: null };
+    } catch (error: any) {
+      return { data: null, error };
     }
-
-    // 2. Get profiles not in excluded list
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url')
-      .not('id', 'in', `(${Array.from(excludedIds).join(',')})`)
-      .limit(10);
-
-    return { data, error };
   },
 
   async sendFriendRequest(userId: string, friendId: string) {
-    const { error } = await supabase
-      .from('friendships')
-      .insert([{ user_id: userId, friend_id: friendId, status: 'pending' }]);
-    return { error };
+    try {
+      const response = await fetch('/api/friends/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, friend_id: friendId })
+      });
+      if (!response.ok) throw new Error('Failed to send request');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
   },
 
-  async acceptFriendRequest(requestId: string) {
-    const { error } = await supabase
-      .from('friendships')
-      .update({ status: 'accepted' })
-      .eq('id', requestId);
-    return { error };
+  async acceptFriendRequest(requestId?: string, userId?: string, friendId?: string) {
+    try {
+      const response = await fetch('/api/friends/accept', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId })
+      });
+      if (!response.ok) throw new Error('Failed to accept request');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
   },
 
   async rejectFriendRequest(requestId: string) {
-    const { error } = await supabase
-      .from('friendships')
-      .delete()
-      .eq('id', requestId);
-    return { error };
-  },
-
-  // --- Events ---
-  async getEvents() {
-    const { data, error } = await supabase
-      .from('events')
-      .select(`
-        *,
-        creator:creator_id (full_name, avatar_url)
-      `)
-      .order('start_time', { ascending: true });
-    return { data, error };
-  },
-
-  async joinEvent(userId: string, eventId: string) {
-    const { error } = await supabase
-      .from('event_attendees')
-      .insert([{ event_id: eventId, user_id: userId }]);
-    return { error };
-  },
-
-  // --- Messages ---
-  async getConversations(userId: string) {
-    const { data, error } = await supabase
-      .from('conversations')
-      .select(`
-        *,
-        participants:conversation_participants(user_id, profiles(full_name, avatar_url))
-      `)
-      .eq('conversation_participants.user_id', userId)
-      .order('updated_at', { ascending: false });
-    return { data, error };
-  },
-
-  async getMessages(conversationId: string) {
-    const { data, error } = await supabase
-      .from('messages')
-      .select(`
-        *,
-        sender:sender_id (full_name, avatar_url)
-      `)
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
-    return { data, error };
-  },
-
-  async sendMessage(conversationId: string, senderId: string, content: string) {
-    const { data, error } = await supabase
-      .from('messages')
-      .insert([{ conversation_id: conversationId, sender_id: senderId, content }])
-      .select()
-      .single();
-    return { data, error };
-  },
-
-  // --- Groups ---
-  async getGroups(userId?: string) {
-    const { data: groupsData, error: groupsError } = await supabase
-      .from('groups')
-      .select(`
-        *,
-        creator:creator_id (full_name, avatar_url)
-      `)
-      .order('created_at', { ascending: false });
-
-    if (groupsError || !groupsData) {
-      return { data: null, error: groupsError };
+    try {
+      const response = await fetch('/api/friends/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ request_id: requestId })
+      });
+      if (!response.ok) throw new Error('Failed to reject request');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
     }
-
-    let userMemberships: Record<string, string> = {};
-    if (userId && groupsData.length > 0) {
-      const groupIds = groupsData.map(g => g.id);
-      const { data: membershipData } = await supabase
-        .from('group_members')
-        .select('group_id, status, role')
-        .eq('user_id', userId)
-        .in('group_id', groupIds);
-        
-      if (membershipData) {
-        userMemberships = membershipData.reduce((acc, membership) => {
-          if (membership.group_id) acc[membership.group_id] = membership.status;
-          return acc;
-        }, {} as Record<string, string>);
-      }
-    }
-
-    const groupsWithMembership = groupsData.map(group => ({
-      ...group,
-      user_membership_status: userMemberships[group.id] || null
-    }));
-
-    return { data: groupsWithMembership, error: null };
-  },
-
-  async getGroupById(groupId: string) {
-    const { data, error } = await supabase
-      .from('groups')
-      .select(`
-        *,
-        creator:creator_id (full_name, avatar_url)
-      `)
-      .eq('id', groupId)
-      .single();
-    return { data, error };
-  },
-
-  async createGroup(userId: string, name: string, description: string, privacy: string, coverUrl?: string) {
-    const { data: group, error: groupError } = await supabase
-      .from('groups')
-      .insert([{ 
-        name, 
-        description, 
-        privacy, 
-        cover_url: coverUrl,
-        creator_id: userId 
-      }])
-      .select()
-      .single();
-
-    if (groupError || !group) return { data: null, error: groupError };
-
-    // Automatically add creator as admin
-    await supabase
-      .from('group_members')
-      .insert([{ 
-        group_id: group.id, 
-        user_id: userId, 
-        role: 'admin',
-        status: 'approved'
-      }]);
-
-    return { data: group, error: null };
-  },
-
-  async joinGroup(userId: string, groupId: string, isPrivate: boolean) {
-    const status = isPrivate ? 'pending' : 'approved';
-    const { error } = await supabase
-      .from('group_members')
-      .insert([{ 
-        group_id: groupId, 
-        user_id: userId, 
-        status 
-      }]);
-    return { error };
   },
 
   // --- Notifications ---
   async getNotifications(userId: string) {
-    const { data, error } = await supabase
-      .from('notifications')
-      .select(`
-        *,
-        actor:actor_id (full_name, avatar_url)
-      `)
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    return { data, error };
+    try {
+      const response = await fetch(`/api/notifications/${userId}`);
+      if (!response.ok) throw new Error('Failed to fetch notifications');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
   },
 
   async markNotificationAsRead(userId: string, notificationId: string) {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .match({ id: notificationId, user_id: userId });
-    return { error };
+    try {
+      const response = await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, notificationId })
+      });
+      if (!response.ok) throw new Error('Failed to mark notification as read');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
   },
 
   async markAllNotificationsAsRead(userId: string) {
-    const { error } = await supabase
-      .from('notifications')
-      .update({ is_read: true })
-      .eq('user_id', userId)
-      .eq('is_read', false);
-    return { error };
-  },
-  
-  async deleteNotification(userId: string, notificationId: string) {
-    const { error } = await supabase
-      .from('notifications')
-      .delete()
-      .match({ id: notificationId, user_id: userId });
-    return { error };
+    try {
+      const response = await fetch('/api/notifications/mark-read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      if (!response.ok) throw new Error('Failed to mark all notifications as read');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
   },
 
-  // --- Profile ---
-  async getUserProfile(userId: string) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    return { data, error };
+  async deleteNotification(userId: string, notificationId: string) {
+    try {
+      const response = await fetch(`/api/notifications/${notificationId}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId })
+      });
+      if (!response.ok) throw new Error('Failed to delete notification');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
+  },
+
+  // --- Events ---
+  async getEvents() {
+    try {
+      const response = await fetch('/api/events');
+      if (!response.ok) throw new Error('Failed to fetch events');
+      const data = await response.json();
+      return { data, error: null };
+    } catch (error: any) {
+      return { data: null, error };
+    }
+  },
+
+  async joinEvent(userId: string, eventId: string) {
+    try {
+      const response = await fetch('/api/events/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, event_id: eventId })
+      });
+      if (!response.ok) throw new Error('Failed to join event');
+      return { error: null };
+    } catch (error: any) {
+      return { error };
+    }
   }
 };

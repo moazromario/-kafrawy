@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   TrendingUp, 
@@ -10,7 +10,9 @@ import {
   Plus,
   Zap,
   AlertCircle,
-  Loader2
+  Loader2,
+  Camera,
+  X
 } from "lucide-react";
 import { cn } from "@/src/utils/cn";
 import CommunityNavbar from "@/src/components/community/CommunityNavbar";
@@ -18,18 +20,120 @@ import CommunitySidebar from "@/src/components/community/CommunitySidebar";
 import ContactsSidebar from "@/src/components/community/ContactsSidebar";
 import CreatePost from "@/src/components/community/CreatePost";
 import PostCard from "@/src/components/community/PostCard";
-import ReligiousModule from "@/src/components/religious/ReligiousModule";
 import { TrustLevel } from "@/src/components/community/Badge";
-
 import { useCommunity } from "@/src/context/CommunityContext";
+import { useAuth } from "@/src/context/AuthContext";
+import { communityService } from "@/src/modules/community/communityService";
+import { toast } from "sonner";
+import { supabase } from "@/src/lib/supabase";
 
-type TabType = 'trending' | 'neighborhood' | 'market' | 'services' | 'qa' | 'ads';
+type TabType = 'for_you' | 'trending' | 'neighborhood' | 'market' | 'services' | 'qa' | 'ads';
 
 export default function CommunityPage() {
-  const { posts, loading: postsLoading, loadingMore, hasMore, loadMore } = useCommunity();
-  const [activeTab, setActiveTab] = useState<TabType>('trending');
+  const { user } = useAuth();
+  const { 
+    posts, 
+    loading: postsLoading, 
+    loadingMore, 
+    hasMore, 
+    loadMore,
+    activeCategory,
+    setActiveCategory
+  } = useCommunity();
   const [selectedStory, setSelectedStory] = useState<any>(null);
+  const [stories, setStories] = useState<any[]>([]);
+  const [storiesLoading, setStoriesLoading] = useState(true);
+  const [uploadingStory, setUploadingStory] = useState(false);
+  const [alerts, setAlerts] = useState<any[]>([]);
+  const [showAlertInput, setShowAlertInput] = useState(false);
+  const [newAlertContent, setNewAlertContent] = useState("");
+  const [isSubmittingAlert, setIsSubmittingAlert] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const observerTarget = useRef(null);
+
+  useEffect(() => {
+    fetchStories();
+    fetchAlerts();
+  }, []);
+
+  const fetchAlerts = async () => {
+    try {
+      const { data, error } = await communityService.getAlerts();
+      if (error) throw error;
+      setAlerts(data || []);
+    } catch (error) {
+      console.error("Error fetching alerts:", error);
+    }
+  };
+
+  const handleAddAlert = async () => {
+    if (!user || !newAlertContent.trim()) return;
+    
+    setIsSubmittingAlert(true);
+    try {
+      const { error } = await communityService.createAlert(user.id, newAlertContent);
+      if (error) throw error;
+      setNewAlertContent("");
+      setShowAlertInput(false);
+      toast.success("تم إضافة التنبيه بنجاح");
+      await fetchAlerts();
+    } catch (error) {
+      console.error("Error creating alert:", error);
+      toast.error("فشل إضافة التنبيه");
+    } finally {
+      setIsSubmittingAlert(false);
+    }
+  };
+
+  const fetchStories = async () => {
+    try {
+      const { data, error } = await communityService.getStories();
+      if (error) throw error;
+      setStories(data || []);
+    } catch (error) {
+      console.error("Error fetching stories:", error);
+    } finally {
+      setStoriesLoading(false);
+    }
+  };
+
+  const handleStoryUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    setUploadingStory(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`;
+      const filePath = `stories/${user.id}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('community_media')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('community_media')
+        .getPublicUrl(filePath);
+
+      const { error: storyError } = await communityService.createStory(
+        user.id,
+        publicUrl,
+        file.type.startsWith('video') ? 'video' : 'image'
+      );
+
+      if (storyError) throw storyError;
+
+      toast.success("تمت إضافة القصة بنجاح!");
+      fetchStories();
+    } catch (error) {
+      console.error("Error uploading story:", error);
+      toast.error("فشل رفع القصة");
+    } finally {
+      setUploadingStory(false);
+    }
+  };
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -53,20 +157,13 @@ export default function CommunityPage() {
   }, [loadingMore, hasMore, loadMore]);
 
   const tabs = [
+    { id: 'for_you', label: 'لك', icon: Zap },
     { id: 'trending', label: 'الترند', icon: TrendingUp },
     { id: 'neighborhood', label: 'الحي', icon: MapPin },
     { id: 'market', label: 'السوق', icon: ShoppingBag },
     { id: 'services', label: 'الخدمات', icon: Wrench },
     { id: 'qa', label: 'الأسئلة', icon: HelpCircle },
     { id: 'ads', label: 'الإعلانات', icon: Megaphone },
-  ];
-
-  const stories = [
-    { id: 1, user: "أحمد", avatar: "A", active: true },
-    { id: 2, user: "سارة", avatar: "S", active: true },
-    { id: 3, user: "محمود", avatar: "M", active: false },
-    { id: 4, user: "ليلى", avatar: "L", active: true },
-    { id: 5, user: "ياسين", avatar: "Y", active: false },
   ];
 
   return (
@@ -83,15 +180,29 @@ export default function CommunityPage() {
         <main className="flex-1 max-w-[680px] py-6 space-y-6 mx-auto w-full">
           {/* Stories Section */}
           <div className="flex gap-3 overflow-x-auto pb-4 no-scrollbar">
-            {/* Your Story Card (Facebook Style) */}
-            <div className="flex-shrink-0 w-32 h-52 rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden relative group cursor-pointer flex flex-col">
-              <div className="h-[70%] overflow-hidden">
-                <img 
-                  src="https://picsum.photos/seed/me/200/400" 
-                  alt="Your Story" 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
-                  referrerPolicy="no-referrer" 
-                />
+            {/* Your Story Card */}
+            <div 
+              onClick={() => fileInputRef.current?.click()}
+              className="flex-shrink-0 w-32 h-52 rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden relative group cursor-pointer flex flex-col"
+            >
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*,video/*"
+                onChange={handleStoryUpload}
+              />
+              <div className="h-[70%] overflow-hidden bg-gray-100 flex items-center justify-center">
+                {uploadingStory ? (
+                  <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+                ) : (
+                  <img 
+                    src={user?.user_metadata?.avatar_url || "https://picsum.photos/seed/me/200/400"} 
+                    alt="Your Story" 
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    referrerPolicy="no-referrer" 
+                  />
+                )}
               </div>
               <div className="flex-1 relative flex flex-col items-center justify-end pb-3 bg-white">
                 <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-emerald-600 border-4 border-white flex items-center justify-center text-white shadow-sm">
@@ -102,42 +213,52 @@ export default function CommunityPage() {
             </div>
 
             {/* Friend Stories */}
-            {stories.map((story) => (
-              <div 
-                key={story.id} 
-                onClick={() => setSelectedStory(story)}
-                className="flex-shrink-0 w-32 h-52 rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden relative group cursor-pointer"
-              >
-                <img 
-                  src={`https://picsum.photos/seed/story${story.id}/200/400`} 
-                  alt={story.user} 
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
-                  referrerPolicy="no-referrer" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
-                
-                {/* User Avatar with Ring */}
-                <div className={cn(
-                  "absolute top-3 left-3 w-10 h-10 rounded-full p-0.5 border-2",
-                  story.active ? "border-emerald-500" : "border-gray-300"
-                )}>
-                  <div className="w-full h-full rounded-full bg-white p-0.5">
-                    <div className="w-full h-full rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs overflow-hidden">
-                      <img 
-                        src={`https://picsum.photos/seed/user${story.id}/100/100`} 
-                        alt={story.user} 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
+            {storiesLoading ? (
+              [1, 2, 3].map(i => (
+                <div key={i} className="flex-shrink-0 w-32 h-52 rounded-2xl bg-gray-200 animate-pulse" />
+              ))
+            ) : (
+              stories.map((story) => (
+                <div 
+                  key={story.id} 
+                  onClick={() => setSelectedStory(story)}
+                  className="flex-shrink-0 w-32 h-52 rounded-2xl bg-white border border-gray-200 shadow-sm overflow-hidden relative group cursor-pointer"
+                >
+                  {story.media_type === 'video' ? (
+                    <video 
+                      src={story.media_url} 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img 
+                      src={story.media_url} 
+                      alt={story.profiles?.full_name} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                      referrerPolicy="no-referrer" 
+                    />
+                  )}
+                  <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+                  
+                  {/* User Avatar with Ring */}
+                  <div className="absolute top-3 left-3 w-10 h-10 rounded-full p-0.5 border-2 border-emerald-500">
+                    <div className="w-full h-full rounded-full bg-white p-0.5">
+                      <div className="w-full h-full rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-xs overflow-hidden">
+                        <img 
+                          src={story.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${story.profiles?.full_name}`} 
+                          alt={story.profiles?.full_name} 
+                          className="w-full h-full object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      </div>
                     </div>
                   </div>
+                  
+                  <span className="absolute bottom-3 right-3 text-[11px] font-bold text-white drop-shadow-md truncate max-w-[80%]">
+                    {story.profiles?.full_name}
+                  </span>
                 </div>
-                
-                <span className="absolute bottom-3 right-3 text-[11px] font-bold text-white drop-shadow-md">
-                  {story.user}
-                </span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
 
           {/* Story Viewer Modal */}
@@ -157,12 +278,20 @@ export default function CommunityPage() {
                 </button>
 
                 <div className="relative w-full max-w-[450px] aspect-[9/16] rounded-2xl overflow-hidden shadow-2xl">
-                  <img 
-                    src={`https://picsum.photos/seed/story${selectedStory.id}/1080/1920`} 
-                    alt={selectedStory.user}
-                    className="w-full h-full object-cover"
-                    referrerPolicy="no-referrer"
-                  />
+                  {selectedStory.media_type === 'video' ? (
+                    <video 
+                      src={selectedStory.media_url} 
+                      autoPlay 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <img 
+                      src={selectedStory.media_url} 
+                      alt={selectedStory.profiles?.full_name}
+                      className="w-full h-full object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  )}
                   
                   {/* Progress Bar */}
                   <div className="absolute top-4 left-4 right-4 flex gap-1">
@@ -181,15 +310,15 @@ export default function CommunityPage() {
                   <div className="absolute top-8 left-4 flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full border-2 border-white overflow-hidden">
                       <img 
-                        src={`https://picsum.photos/seed/user${selectedStory.id}/100/100`} 
-                        alt={selectedStory.user}
+                        src={selectedStory.profiles?.avatar_url || `https://ui-avatars.com/api/?name=${selectedStory.profiles?.full_name}`} 
+                        alt={selectedStory.profiles?.full_name}
                         className="w-full h-full object-cover"
                         referrerPolicy="no-referrer"
                       />
                     </div>
                     <div>
-                      <h3 className="text-white font-bold text-sm">{selectedStory.user}</h3>
-                      <p className="text-white/70 text-[10px]">منذ ساعتين</p>
+                      <h3 className="text-white font-bold text-sm">{selectedStory.profiles?.full_name}</h3>
+                      <p className="text-white/70 text-[10px]">منذ {new Date(selectedStory.created_at).getHours()} ساعة</p>
                     </div>
                   </div>
 
@@ -214,9 +343,6 @@ export default function CommunityPage() {
           {/* Create Post */}
           <CreatePost />
 
-          {/* Religious Module */}
-          <ReligiousModule />
-
           {/* What's Happening Now - Real-time Alerts (Part of Feed) */}
           <section className="bg-emerald-600 rounded-2xl p-4 text-white shadow-lg shadow-emerald-100 overflow-hidden relative">
             <div className="flex items-center justify-between mb-3 relative z-10">
@@ -224,13 +350,61 @@ export default function CommunityPage() {
                 <Zap size={18} className="text-yellow-300 fill-yellow-300" />
                 <h2 className="font-bold text-sm">ماذا يحدث الآن في كفراوي</h2>
               </div>
-              <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full backdrop-blur-sm">مباشر</span>
+              <button 
+                onClick={() => setShowAlertInput(!showAlertInput)}
+                className="text-[10px] bg-white/20 px-2 py-1 rounded-full backdrop-blur-sm hover:bg-white/30 transition-colors"
+              >
+                {showAlertInput ? "إلغاء" : "إضافة بلاغ"}
+              </button>
             </div>
+
+            <AnimatePresence>
+              {showAlertInput && (
+                <motion.div 
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="mb-3 relative z-10 overflow-hidden"
+                >
+                  <div className="flex gap-2">
+                    <input 
+                      type="text" 
+                      value={newAlertContent}
+                      onChange={(e) => setNewAlertContent(e.target.value)}
+                      placeholder="ماذا يحدث؟ (مثلاً: ازدحام عند المدخل)"
+                      className="flex-1 bg-white/10 border border-white/20 rounded-xl px-3 py-2 text-xs text-white placeholder:text-white/50 focus:outline-none focus:border-white/40"
+                    />
+                    <button 
+                      onClick={handleAddAlert}
+                      disabled={isSubmittingAlert || !newAlertContent.trim()}
+                      className="bg-white text-emerald-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                    >
+                      {isSubmittingAlert ? <Loader2 size={14} className="animate-spin" /> : "نشر"}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <div className="space-y-2 relative z-10">
-              <div className="flex items-center gap-3 bg-white/10 p-2 rounded-xl backdrop-blur-sm border border-white/10">
-                <AlertCircle size={14} className="text-orange-300" />
-                <p className="text-xs font-medium">ازدحام مروري عند مدخل الحي الثاني بسبب أعمال صيانة</p>
-              </div>
+              {alerts.length === 0 ? (
+                <div className="flex items-center gap-3 bg-white/10 p-2 rounded-xl backdrop-blur-sm border border-white/10">
+                  <AlertCircle size={14} className="text-white/70" />
+                  <p className="text-xs font-medium opacity-70">لا توجد تنبيهات حالياً</p>
+                </div>
+              ) : (
+                alerts.map((alert) => (
+                  <motion.div 
+                    key={alert.id}
+                    initial={{ x: -20, opacity: 0 }}
+                    animate={{ x: 0, opacity: 1 }}
+                    className="flex items-center gap-3 bg-white/10 p-2 rounded-xl backdrop-blur-sm border border-white/10"
+                  >
+                    <AlertCircle size={14} className={alert.type === 'warning' ? 'text-orange-300' : 'text-yellow-300'} />
+                    <p className="text-xs font-medium">{alert.content}</p>
+                  </motion.div>
+                ))
+              )}
             </div>
           </section>
 
@@ -241,10 +415,10 @@ export default function CommunityPage() {
                 {tabs.map((tab) => (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id as TabType)}
+                    onClick={() => setActiveCategory(tab.id)}
                     className={cn(
                       "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap",
-                      activeTab === tab.id 
+                      activeCategory === tab.id 
                         ? "bg-emerald-600 text-white shadow-md shadow-emerald-100" 
                         : "bg-white text-gray-500 border border-gray-100 hover:bg-gray-50"
                     )}
@@ -258,7 +432,7 @@ export default function CommunityPage() {
 
             <AnimatePresence mode="wait">
               <motion.div
-                key={activeTab}
+                key={activeCategory}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}

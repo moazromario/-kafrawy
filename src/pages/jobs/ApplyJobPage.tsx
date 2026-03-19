@@ -4,6 +4,7 @@ import {
   ArrowRight, 
   FileText, 
   Upload, 
+  Zap,
   CheckCircle2, 
   X, 
   Send, 
@@ -17,26 +18,45 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useJobs } from "@/src/context/JobsContext";
 import { cn } from "@/src/utils/cn";
 
+import { toast } from "sonner";
+
 export default function ApplyJobPage() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const { jobs, applyToJob } = useJobs();
+  const { jobs, applyToJob, payAndApply } = useJobs();
   const job = jobs.find(j => j.id === id) || jobs[0];
 
   const [coverLetter, setCoverLetter] = useState("");
   const [cvFile, setCvFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [useWallet, setUseWallet] = useState(false);
 
   const handleSubmit = async () => {
-    if (!cvFile) return;
+    if (!cvFile) {
+      toast.error("يرجى رفع السيرة الذاتية أولاً");
+      return;
+    }
+    
     setIsSubmitting(true);
-    // Simulate API call
-    setTimeout(() => {
-      applyToJob(job.id, coverLetter, cvFile);
-      setIsSubmitting(false);
+    try {
+      if (useWallet) {
+        await payAndApply(job.id, coverLetter, cvFile);
+      } else {
+        await applyToJob(job.id, coverLetter, cvFile);
+      }
       setIsSuccess(true);
-    }, 1500);
+      toast.success("تم إرسال طلبك بنجاح");
+    } catch (error: any) {
+      console.error("Error applying:", error);
+      if (error.message === 'Already applied') {
+        toast.error("لقد قمت بالتقديم على هذه الوظيفة مسبقاً");
+      } else {
+        toast.error("حدث خطأ أثناء التقديم، يرجى المحاولة مرة أخرى");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (isSuccess) {
@@ -139,6 +159,31 @@ export default function ApplyJobPage() {
               className="w-full p-6 bg-gray-50 border-none rounded-[24px] text-sm font-bold focus:ring-2 focus:ring-[#1877F2] outline-none transition-all placeholder:text-gray-400 shadow-inner min-h-[200px] resize-none"
             />
           </div>
+        </section>
+
+        {/* Professional Feature: Pay and Apply */}
+        <section className="bg-emerald-50 p-6 rounded-[32px] border border-emerald-100 flex items-center justify-between">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-emerald-600 flex-shrink-0 shadow-sm">
+              <Zap size={20} />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-black text-emerald-700">تقديم سريع (مدفوع)</h4>
+              <p className="text-[10px] font-bold text-emerald-600/70 leading-relaxed">احصل على أولوية في المراجعة مقابل ١٠ نقاط من محفظتك.</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => setUseWallet(!useWallet)}
+            className={cn(
+              "w-12 h-6 rounded-full transition-all relative",
+              useWallet ? "bg-emerald-500" : "bg-gray-200"
+            )}
+          >
+            <div className={cn(
+              "absolute top-1 w-4 h-4 bg-white rounded-full transition-all",
+              useWallet ? "right-7" : "right-1"
+            )} />
+          </button>
         </section>
 
         {/* Tips */}

@@ -28,7 +28,23 @@ CREATE POLICY "Users can update own profile"
 ON profiles FOR UPDATE 
 USING (auth.uid() = id);
 
--- 5. Create a trigger to handle new user signup
+-- 6. Create Neighborhood Alerts Table
+CREATE TABLE neighborhood_alerts (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  content TEXT NOT NULL,
+  type TEXT DEFAULT 'info',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE neighborhood_alerts ENABLE ROW LEVEL SECURITY;
+
+-- Policies
+CREATE POLICY "Alerts are viewable by everyone" ON neighborhood_alerts FOR SELECT USING (true);
+CREATE POLICY "Users can create alerts" ON neighborhood_alerts FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+-- 7. Trigger the function every time a user is created
 -- This function will automatically create a profile when a new user signs up via Supabase Auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$

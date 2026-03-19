@@ -290,8 +290,8 @@ CREATE POLICY "View Posts" ON posts FOR SELECT USING (
     (group_id IS NOT NULL AND is_group_member(auth.uid(), group_id)) -- Group member
   )
 );
-DROP POLICY IF EXISTS "Create Posts" ON posts;
-CREATE POLICY "Create Posts" ON posts FOR INSERT WITH CHECK (auth.uid() = user_id);
+DROP POLICY IF EXISTS "users insert posts" ON posts;
+CREATE POLICY "users insert posts" ON posts FOR INSERT WITH CHECK (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Update Posts" ON posts;
 CREATE POLICY "Update Posts" ON posts FOR UPDATE USING (auth.uid() = user_id);
 DROP POLICY IF EXISTS "Delete Posts" ON posts;
@@ -511,6 +511,13 @@ COMMIT;
 ALTER PUBLICATION supabase_realtime ADD TABLE messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
 ALTER PUBLICATION supabase_realtime ADD TABLE conversation_participants;
+
+-- ==========================================
+-- 10. PERFORMANCE INDEXES
+-- ==========================================
+CREATE INDEX idx_posts_created_at ON posts(created_at);
+CREATE INDEX idx_reactions_post ON reactions(post_id);
+CREATE INDEX idx_comments_post ON comments(post_id);
 
 -- ==========================================
 -- RELOAD SCHEMA CACHE

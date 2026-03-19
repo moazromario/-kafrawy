@@ -1,4 +1,5 @@
-import { Search, MoreHorizontal, Video, UserPlus } from "lucide-react";
+import { Search, MoreHorizontal, Video, UserPlus, Trophy, Star, TrendingUp } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function ContactsSidebar() {
   const contacts = [
@@ -9,8 +10,32 @@ export default function ContactsSidebar() {
     { id: 5, name: "ياسين كريم", online: false },
   ];
 
+  const stats = [
+    { label: "أفضل متفاعل", name: "أحمد علي", icon: Trophy, color: "text-yellow-500" },
+    { label: "الأكثر نشاطاً", name: "سارة محمود", icon: TrendingUp, color: "text-emerald-500" },
+    { label: "عضو مميز", name: "محمود حسن", icon: Star, color: "text-blue-500" },
+  ];
+
   return (
     <aside className="hidden xl:block w-[300px] sticky top-20 h-[calc(100vh-80px)] overflow-y-auto no-scrollbar py-2">
+      {/* Community Stats */}
+      <div className="mb-8 bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+        <h3 className="text-xs font-black text-gray-400 uppercase tracking-wider mb-4 px-1">لوحة الشرف</h3>
+        <div className="space-y-4">
+          {stats.map((stat, i) => (
+            <div key={i} className="flex items-center gap-3">
+              <div className={`w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center ${stat.color}`}>
+                <stat.icon size={16} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-gray-400">{stat.label}</p>
+                <p className="text-xs font-black text-gray-900">{stat.name}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="flex items-center justify-between px-2 mb-4">
         <h3 className="text-sm font-bold text-gray-500">جهات الاتصال</h3>
         <div className="flex items-center gap-3 text-gray-500">
@@ -67,5 +92,3 @@ export default function ContactsSidebar() {
     </aside>
   );
 }
-
-import { Link } from "react-router-dom";

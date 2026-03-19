@@ -27,6 +27,18 @@ export const jobsService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
 
+    // 1. Check if already applied (Backend Logic 4)
+    const { data: existingApp } = await supabase
+      .from('job_applications')
+      .select('*')
+      .eq('job_id', jobId)
+      .eq('applicant_id', user.id);
+
+    if (existingApp && existingApp.length > 0) {
+      throw new Error('Already applied');
+    }
+
+    // 2. Apply (Backend Logic 4)
     const { data, error } = await supabase
       .from('job_applications')
       .insert({
@@ -37,7 +49,72 @@ export const jobsService = {
       })
       .select()
       .single();
+
+    // 3. Create Notification (Logic 6)
+    if (!error) {
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: "تم استلام طلبك للوظيفة",
+        content: `لقد تم إرسال طلبك بنجاح للوظيفة.`
+      });
+    }
+
     return { data, error };
+  },
+
+  async saveJob(jobId: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('saved_jobs')
+      .upsert({
+        job_id: jobId,
+        user_id: user.id
+      })
+      .select()
+      .single();
+    return { data, error };
+  },
+
+  async getSavedJobs() {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('saved_jobs')
+      .select(`
+        *,
+        job_posts (*)
+      `)
+      .eq('user_id', user.id);
+    return { data, error };
+  },
+
+  async searchJobs(keyword: string, location?: string) {
+    let query = supabase
+      .from('job_posts')
+      .select('*')
+      .ilike('title', `%${keyword}%`);
+
+    if (location) {
+      query = query.eq('location', location);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  async payAndApply(jobId: string, resumeUrl: string, coverLetter: string) {
+    const { data, error } = await supabase.rpc('apply_with_payment', {
+      p_job_id: jobId,
+      p_resume_url: resumeUrl,
+      p_cover_letter: coverLetter,
+      p_amount: 10.00
+    });
+
+    if (error) throw error;
+    return { data, error: null };
   },
 
   async getMyApplications() {
@@ -56,6 +133,21 @@ export const jobsService = {
   },
 
   // Employer functions
+  async createJobPost(jobData: any) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error('User not authenticated');
+
+    const { data, error } = await supabase
+      .from('job_posts')
+      .insert({
+        ...jobData,
+        employer_id: user.id,
+      })
+      .select()
+      .single();
+    return { data, error };
+  },
+
   async getEmployerJobs() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('User not authenticated');
@@ -77,6 +169,16 @@ export const jobsService = {
       `)
       .eq('job_id', jobId)
       .order('created_at', { ascending: false });
+    return { data, error };
+  },
+
+  async updateApplicationStatus(applicationId: string, status: string) {
+    const { data, error } = await supabase
+      .from('job_applications')
+      .update({ status })
+      .eq('id', applicationId)
+      .select()
+      .single();
     return { data, error };
   },
 };

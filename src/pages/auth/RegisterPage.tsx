@@ -1,6 +1,6 @@
-import React, { useState } from "react";
-import { motion } from "motion/react";
-import { Mail, Lock, User, ArrowLeft, Loader2, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "motion/react";
+import { Mail, Lock, User, ArrowLeft, Loader2, ShieldCheck, Eye, EyeOff, Phone, MapPin, Check, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { authService } from "@/src/modules/auth/authService";
 
@@ -9,28 +9,36 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
+  const [location, setLocation] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+
+  const passwordRequirements = [
+    { label: "6 أحرف على الأقل", met: password.length >= 6 },
+    { label: "يحتوي على رقم", met: /\d/.test(password) },
+    { label: "يحتوي على حرف كبير", met: /[A-Z]/.test(password) },
+  ];
+
+  const isPasswordValid = passwordRequirements.every(req => req.met);
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    if (password.length < 6) {
-      setError("يجب أن تكون كلمة المرور 6 أحرف على الأقل");
-      setLoading(false);
+    if (!isPasswordValid) {
+      setError("يرجى استيفاء متطلبات كلمة المرور");
       return;
     }
+
+    setLoading(true);
+    setError(null);
 
     try {
       const { error: authError } = await authService.signUp(email, password, fullName);
       if (authError) throw authError;
       
-      setSuccess(true);
-      setTimeout(() => navigate("/login"), 3000);
+      // Redirect to verification page with email in state
+      navigate("/verify-email", { state: { email } });
     } catch (err: any) {
       setError(err.message || "حدث خطأ أثناء إنشاء الحساب. قد يكون البريد مستخدماً بالفعل.");
     } finally {
@@ -38,38 +46,12 @@ export default function RegisterPage() {
     }
   };
 
-  if (success) {
-    return (
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
-        <motion.div 
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="w-full max-w-md bg-white rounded-[40px] shadow-2xl p-10 text-center"
-        >
-          <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-6">
-            <ShieldCheck size={40} />
-          </div>
-          <h2 className="text-2xl font-black text-gray-900 mb-4">تم إنشاء الحساب بنجاح!</h2>
-          <p className="text-gray-500 font-bold mb-8">يرجى التحقق من بريدك الإلكتروني لتفعيل الحساب. سيتم تحويلك لصفحة الدخول خلال لحظات...</p>
-          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: "100%" }}
-              transition={{ duration: 3 }}
-              className="h-full bg-emerald-500"
-            />
-          </div>
-        </motion.div>
-      </div>
-    );
-  }
-
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center p-4 py-12">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md bg-white rounded-[40px] shadow-2xl shadow-blue-100/50 p-8 md:p-10"
+        className="w-full max-w-lg bg-white rounded-[40px] shadow-2xl shadow-blue-100/50 p-8 md:p-10"
       >
         <div className="flex justify-between items-center mb-10">
           <Link to="/login" className="w-10 h-10 flex items-center justify-center bg-gray-50 text-gray-400 rounded-xl hover:bg-gray-100 transition-all">
@@ -97,18 +79,34 @@ export default function RegisterPage() {
         )}
 
         <form className="space-y-5" onSubmit={handleRegister}>
-          <div className="space-y-2">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest mr-2">الاسم الكامل</label>
-            <div className="relative group">
-              <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#1877F2] transition-colors" size={18} />
-              <input
-                type="text"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="أدخل اسمك بالكامل"
-                required
-                className="w-full pl-12 pr-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-[#1877F2] outline-none transition-all placeholder:text-gray-300"
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest mr-2">الاسم الكامل</label>
+              <div className="relative group">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#1877F2] transition-colors" size={18} />
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  placeholder="الاسم بالكامل"
+                  required
+                  className="w-full pl-12 pr-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-[#1877F2] outline-none transition-all placeholder:text-gray-300"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-black text-gray-400 uppercase tracking-widest mr-2">رقم الهاتف</label>
+              <div className="relative group">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#1877F2] transition-colors" size={18} />
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="01xxxxxxxxx"
+                  className="w-full pl-12 pr-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-[#1877F2] outline-none transition-all placeholder:text-gray-300"
+                />
+              </div>
             </div>
           </div>
 
@@ -122,6 +120,20 @@ export default function RegisterPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
                 required
+                className="w-full pl-12 pr-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-[#1877F2] outline-none transition-all placeholder:text-gray-300"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-black text-gray-400 uppercase tracking-widest mr-2">الموقع / الحي</label>
+            <div className="relative group">
+              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300 group-focus-within:text-[#1877F2] transition-colors" size={18} />
+              <input
+                type="text"
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="مثال: الحي الأول، مدينة العبور"
                 className="w-full pl-12 pr-5 py-4 bg-gray-50 border-2 border-transparent rounded-2xl text-sm font-bold focus:bg-white focus:border-[#1877F2] outline-none transition-all placeholder:text-gray-300"
               />
             </div>
@@ -147,7 +159,21 @@ export default function RegisterPage() {
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
-            <p className="text-[10px] text-gray-400 font-bold mr-2">يجب أن تكون 6 أحرف على الأقل</p>
+            
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mt-3 px-2">
+              {passwordRequirements.map((req, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  {req.met ? (
+                    <Check size={12} className="text-emerald-500" />
+                  ) : (
+                    <X size={12} className="text-gray-300" />
+                  )}
+                  <span className={`text-[10px] font-bold ${req.met ? "text-emerald-600" : "text-gray-400"}`}>
+                    {req.label}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
 
           <button
@@ -174,3 +200,4 @@ export default function RegisterPage() {
     </div>
   );
 }
+

@@ -19,6 +19,7 @@ import {
   Eye,
   Loader2
 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import CommunityNavbar from "@/src/components/community/CommunityNavbar";
 import CommunitySidebar from "@/src/components/community/CommunitySidebar";
 import ContactsSidebar from "@/src/components/community/ContactsSidebar";
@@ -27,6 +28,7 @@ import { useAuth } from "@/src/context/AuthContext";
 
 export default function GroupsPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newGroup, setNewGroup] = useState({
@@ -276,6 +278,7 @@ export default function GroupsPage() {
                   <motion.div 
                     whileHover={{ y: -4 }}
                     key={group.id} 
+                    onClick={() => navigate(`/community/group/${group.id}`)}
                     className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 group cursor-pointer"
                   >
                     <div className="h-24 relative">
@@ -330,7 +333,8 @@ export default function GroupsPage() {
                   <motion.div 
                     whileHover={{ scale: 1.02 }}
                     key={group.id} 
-                    className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col"
+                    onClick={() => navigate(`/community/group/${group.id}`)}
+                    className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden flex flex-col cursor-pointer"
                   >
                     <div className="h-32 relative">
                       <img src={group.cover_url || `https://picsum.photos/seed/${group.id}/400/200`} alt="Group" className="w-full h-full object-cover" referrerPolicy="no-referrer" />

@@ -46,7 +46,10 @@ export default function EmployerDashboardPage() {
             </button>
             <h1 className="text-xl font-black text-[#050505]">لوحة تحكم الشركات</h1>
           </div>
-          <button className="w-12 h-12 bg-[#1877F2] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100 active:scale-95 transition-all">
+          <button 
+            onClick={() => navigate('/jobs/post')}
+            className="w-12 h-12 bg-[#1877F2] text-white rounded-2xl flex items-center justify-center shadow-lg shadow-blue-100 active:scale-95 transition-all"
+          >
             <Plus size={24} />
           </button>
         </div>
@@ -102,7 +105,10 @@ export default function EmployerDashboardPage() {
                 </div>
 
                 <div className="flex gap-3">
-                  <button className="flex-1 py-4 bg-[#1877F2] text-white rounded-[24px] font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-100 active:scale-95 transition-all">
+                  <button 
+                    onClick={() => navigate(`/jobs/${job.id}/applications`)}
+                    className="flex-1 py-4 bg-[#1877F2] text-white rounded-[24px] font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-100 active:scale-95 transition-all"
+                  >
                     <Users size={16} />
                     <span>إدارة المتقدمين</span>
                   </button>
