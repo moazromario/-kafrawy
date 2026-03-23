@@ -24,7 +24,8 @@ import {
   MapPin,
   Stethoscope,
   Truck,
-  Wallet
+  Wallet,
+  Map as MapIcon
 } from "lucide-react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { cn } from "@/src/utils/cn";
@@ -594,6 +595,20 @@ export default function HomePage() {
               </button>
             </div>
           </div>
+        </section>
+
+        {/* Sitemap Link */}
+        <section className="px-6 py-10 text-center">
+          <Link 
+            to="/sitemap" 
+            className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-gray-200 rounded-2xl text-xs font-black text-gray-400 hover:text-emerald-600 hover:border-emerald-100 hover:bg-emerald-50 transition-all shadow-sm"
+          >
+            <MapIcon size={16} />
+            <span>عرض خريطة التطبيق الكاملة</span>
+          </Link>
+          <p className="mt-4 text-[10px] font-bold text-gray-300 uppercase tracking-[0.2em]">
+            Kafrawy Super App • Built with Precision
+          </p>
         </section>
       </main>
 

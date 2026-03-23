@@ -15,6 +15,7 @@ import { MedicalProvider } from "./context/MedicalContext";
 import { JobsProvider } from "./context/JobsContext";
 import { CommunityProvider } from "./context/CommunityContext";
 import Layout from "./components/layout/Layout";
+import KafrawyAI from "./components/ai/KafrawyAI";
 
 // Lazy loading pages
 const HomePage = lazy(() => import("./pages/home/HomePage"));
@@ -47,6 +48,9 @@ const GroupsPage = lazy(() => import("./pages/community/GroupsPage"));
 const GroupDetailsPage = lazy(() => import("./pages/community/GroupDetailsPage"));
 const PagesPage = lazy(() => import("./pages/community/PagesPage"));
 const PageDetailsPage = lazy(() => import("./pages/community/PageDetailsPage"));
+const TransportPage = lazy(() => import("./pages/transport/TransportPage"));
+const CaptainDashboardPage = lazy(() => import("./pages/transport/CaptainDashboardPage"));
+const AdminAnalyticsPage = lazy(() => import("./pages/transport/AdminAnalyticsPage"));
 const ExplorePage = lazy(() => import("./pages/community/ExplorePage"));
 const MessagesPage = lazy(() => import("./pages/community/MessagesPage"));
 const NotificationsPage = lazy(() => import("./pages/community/NotificationsPage"));
@@ -139,6 +143,7 @@ const VerifyEmailPage = lazy(() => import("./pages/auth/VerifyEmailPage"));
 const ForgotPasswordPage = lazy(() => import("./pages/auth/ForgotPasswordPage"));
 const ResetPasswordPage = lazy(() => import("./pages/auth/ResetPasswordPage"));
 const AdminDashboard = lazy(() => import("./modules/admin/AdminDashboard"));
+const SitemapPage = lazy(() => import("./pages/admin/SitemapPage"));
 
 const LoadingFallback = () => (
   <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -290,6 +295,10 @@ export default function App() {
             <Route path="profile/edit" element={<EditProfilePage />} />
             <Route path="settings" element={<SettingsPage />} />
             <Route path="admin" element={<AdminDashboard />} />
+            <Route path="sitemap" element={<SitemapPage />} />
+            <Route path="transport" element={<TransportPage />} />
+            <Route path="transport/captain" element={<CaptainDashboardPage />} />
+            <Route path="admin/transport/analytics" element={<AdminAnalyticsPage />} />
           </Route>
           <Route path="login" element={<LoginPage />} />
           <Route path="register" element={<RegisterPage />} />
@@ -297,6 +306,7 @@ export default function App() {
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
         </Routes>
+        <KafrawyAI />
       </Suspense>
     </BrowserRouter>
       </CommunityProvider>

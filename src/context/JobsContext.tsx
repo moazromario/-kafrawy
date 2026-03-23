@@ -78,6 +78,10 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         setIsLoading(true);
         const { data: dbJobs, error: jobsError } = await jobsService.getJobs();
         
+        if (jobsError) {
+          console.warn("Note: Using mock jobs data because:", jobsError.message);
+        }
+
         if (dbJobs && dbJobs.length > 0) {
           const mappedJobs: Job[] = dbJobs.map((job: any) => ({
             id: job.id,
@@ -146,8 +150,10 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
         }
 
         if (user) {
-          const { data: dbApps } = await jobsService.getMyApplications();
-          if (dbApps && dbApps.length > 0) {
+          const { data: dbApps, error: appsError } = await jobsService.getMyApplications();
+          if (appsError) {
+            console.warn("Could not fetch applications:", appsError.message);
+          } else if (dbApps && dbApps.length > 0) {
             const mappedApps: Application[] = dbApps.map((app: any) => ({
               id: app.id,
               jobId: app.job_id,
@@ -162,13 +168,15 @@ export const JobsProvider = ({ children }: { children: ReactNode }) => {
             setApplications(mappedApps);
           }
 
-          const { data: dbSaved } = await jobsService.getSavedJobs();
-          if (dbSaved) {
+          const { data: dbSaved, error: savedError } = await jobsService.getSavedJobs();
+          if (savedError) {
+            console.warn("Could not fetch saved jobs:", savedError.message);
+          } else if (dbSaved) {
             setSavedJobs(dbSaved.map((s: any) => s.job_id));
           }
         }
       } catch (error) {
-        console.error("Error fetching jobs data:", error);
+        console.error("Critical error in JobsContext:", error);
       } finally {
         setIsLoading(false);
       }

@@ -1,76 +1,60 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const API_KEY = process.env.GEMINI_API_KEY || "";
 
 export interface MatchResult {
   score: number;
-  matchReason: string;
-  missingSkills: string[];
-  advice: string;
+  strengths: string[];
+  weaknesses: string[];
+  recommendations: string[];
 }
 
 export const aiService = {
-  async analyzeJobMatch(userProfile: any, jobDetails: any): Promise<MatchResult> {
-    if (!GEMINI_API_KEY) {
-      throw new Error("Gemini API key is missing");
+  async generateResponse(prompt: string, systemInstruction?: string) {
+    if (!API_KEY) {
+      throw new Error("Gemini API Key is missing. Please add it to your environment variables.");
     }
 
-    const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
     
-    const prompt = `
-      كمدقق وظائف ذكي، قم بتحليل مدى توافق المستخدم مع الوظيفة التالية.
-      
-      بيانات المستخدم:
-      - الاسم: ${userProfile.full_name}
-      - المهارات: ${userProfile.skills?.join(", ") || "غير محددة"}
-      - الخبرة: ${userProfile.experience || "غير محددة"}
-      - التعليم: ${userProfile.education || "غير محددة"}
-      
-      بيانات الوظيفة:
-      - العنوان: ${jobDetails.title}
-      - الشركة: ${jobDetails.company}
-      - الوصف: ${jobDetails.description}
-      - المتطلبات: ${jobDetails.requirements?.join(", ") || "غير محددة"}
-      
-      قم بالرد بتنسيق JSON فقط يحتوي على:
-      1. score: رقم من 0 إلى 100 يمثل نسبة التوافق.
-      2. matchReason: سبب التوافق باختصار باللغة العربية.
-      3. missingSkills: قائمة بالمهارات التي تنقص المستخدم لهذه الوظيفة.
-      4. advice: نصيحة للمستخدم لتحسين فرصه في القبول.
-    `;
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        systemInstruction: systemInstruction || "أنت مساعد ذكي لتطبيق كفراوي (Kafrawy Super App). تطبيق يخدم سكان منطقة الكفراوي بالعبور. ساعد المستخدمين في كتابة منشورات، تحسين سيرتهم الذاتية، أو العثور على خدمات. كن ودوداً ولهجتك مصرية خفيفة.",
+      },
+    });
+
+    return response.text;
+  },
+
+  async analyzeJobMatch(jobDescription: string, userCV: string): Promise<MatchResult> {
+    const prompt = `حلل مدى توافق السيرة الذاتية التالية مع وصف الوظيفة. أعطِ نسبة مئوية ونقاط القوة والضعف وتوصيات للتحسين. أرجع النتيجة بتنسيق JSON فقط.\n\nالوظيفة: ${jobDescription}\n\nالسيرة الذاتية: ${userCV}`;
+    const systemInstruction = "أنت خبير توظيف ذكي. حلل البيانات بدقة واحترافية. يجب أن يكون الرد بتنسيق JSON يحتوي على الحقول التالية: score (رقم من 0 لـ 100), strengths (مصفوفة نصوص), weaknesses (مصفوفة نصوص), recommendations (مصفوفة نصوص).";
+    
+    const ai = new GoogleGenAI({ apiKey: API_KEY });
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+      config: {
+        systemInstruction: systemInstruction,
+        responseMimeType: "application/json"
+      },
+    });
 
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              score: { type: Type.NUMBER },
-              matchReason: { type: Type.STRING },
-              missingSkills: { 
-                type: Type.ARRAY,
-                items: { type: Type.STRING }
-              },
-              advice: { type: Type.STRING }
-            },
-            required: ["score", "matchReason", "missingSkills", "advice"]
-          }
-        }
-      });
-
-      const result = JSON.parse(response.text || "{}");
-      return result as MatchResult;
-    } catch (error) {
-      console.error("Error in AI matching:", error);
+      return JSON.parse(response.text) as MatchResult;
+    } catch (e) {
       return {
         score: 0,
-        matchReason: "حدث خطأ أثناء تحليل التوافق.",
-        missingSkills: [],
-        advice: "يرجى المحاولة مرة أخرى لاحقاً."
+        strengths: [],
+        weaknesses: ["فشل في تحليل البيانات"],
+        recommendations: ["حاول مرة أخرى لاحقاً"]
       };
     }
+  },
+
+  async analyzeJobCompatibility(jobDescription: string, userCV: string) {
+    return this.analyzeJobMatch(jobDescription, userCV);
   }
 };

@@ -5,25 +5,56 @@ import { fileURLToPath } from "url";
 import Database from "better-sqlite3";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import crypto from "crypto";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// --- Encryption Utility for Data Security ---
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex'); // Must be 256 bits (32 characters)
+const IV_LENGTH = 16; // For AES, this is always 16
+
+function encryptData(text: string) {
+  if (!text) return text;
+  const iv = crypto.randomBytes(IV_LENGTH);
+  const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
+  let encrypted = cipher.update(text);
+  encrypted = Buffer.concat([encrypted, cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+function decryptData(text: string) {
+  if (!text || !text.includes(':')) return text;
+  try {
+    const textParts = text.split(':');
+    const iv = Buffer.from(textParts.shift()!, 'hex');
+    const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(ENCRYPTION_KEY, 'hex'), iv);
+    let decrypted = decipher.update(encryptedText);
+    decrypted = Buffer.concat([decrypted, decipher.final()]);
+    return decrypted.toString();
+  } catch (e) {
+    return text; // Return original if decryption fails (e.g., legacy unencrypted data)
+  }
+}
+
 // Supabase Initialization
 const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
 const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
 
+const isPlaceholderUrl = supabaseUrl.includes('your-supabase-url') || supabaseUrl === '';
+
 let supabase: any = null;
-if (supabaseUrl && supabaseAnonKey) {
+if (!isPlaceholderUrl && supabaseUrl && supabaseAnonKey) {
   try {
     supabase = createClient(supabaseUrl, supabaseAnonKey);
   } catch (e) {
     console.error("Failed to initialize Supabase client:", e);
   }
 } else {
-  console.warn("Supabase URL or Anon Key is missing in server environment.");
+  console.warn("Supabase is not properly configured in server environment (missing or placeholder URL).");
 }
 
 async function startServer() {
@@ -81,9 +112,61 @@ async function startServer() {
   if (!columns.includes('phone')) {
     try { db.exec("ALTER TABLE users ADD COLUMN phone TEXT;"); } catch (e) {}
   }
+  if (!columns.includes('cancel_count')) {
+    try { db.exec("ALTER TABLE users ADD COLUMN cancel_count INTEGER DEFAULT 0;"); } catch (e) {}
+  }
+
+  // Check rides table columns
+  try {
+    const ridesColumns = db.prepare("PRAGMA table_info(rides)").all().map((c: any) => c.name);
+    if (!ridesColumns.includes('rating')) {
+      db.exec("ALTER TABLE rides ADD COLUMN rating INTEGER;");
+    }
+    if (!ridesColumns.includes('feedback')) {
+      db.exec("ALTER TABLE rides ADD COLUMN feedback TEXT;");
+    }
+  } catch (e) {
+    // Table might not exist yet, which is fine, it will be created below
+  }
+
+  // Check captains table columns
+  try {
+    const captainsColumns = db.prepare("PRAGMA table_info(captains)").all().map((c: any) => c.name);
+    if (!captainsColumns.includes('lat')) {
+      db.exec("ALTER TABLE captains ADD COLUMN lat REAL;");
+    }
+    if (!captainsColumns.includes('lng')) {
+      db.exec("ALTER TABLE captains ADD COLUMN lng REAL;");
+    }
+    if (!captainsColumns.includes('is_active')) {
+      db.exec("ALTER TABLE captains ADD COLUMN is_active INTEGER DEFAULT 0;");
+    }
+  } catch (e) {
+    // Table might not exist yet
+  }
 
   // 3. Create other tables
   db.exec(`
+    CREATE TABLE IF NOT EXISTS captains (
+      id TEXT PRIMARY KEY,
+      user_id TEXT UNIQUE,
+      rating REAL DEFAULT 5.0,
+      total_ratings INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'pending', -- pending, active, banned
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS sos_alerts (
+      id TEXT PRIMARY KEY,
+      ride_id TEXT,
+      user_id TEXT,
+      location TEXT,
+      status TEXT DEFAULT 'active', -- active, resolved
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
+    );
+
     CREATE TABLE IF NOT EXISTS posts (
       id TEXT PRIMARY KEY,
       user_id TEXT,
@@ -154,6 +237,19 @@ async function startServer() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY(user_id) REFERENCES users(id),
       FOREIGN KEY(actor_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS rides (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      driver_id TEXT,
+      pickup_location TEXT,
+      dropoff_location TEXT,
+      status TEXT DEFAULT 'pending', -- pending, accepted, in_progress, completed, cancelled
+      rating INTEGER,
+      feedback TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(user_id) REFERENCES users(id)
     );
 
     CREATE TABLE IF NOT EXISTS conversations (
@@ -333,19 +429,24 @@ async function startServer() {
   });
 
   app.post("/api/profile/update", async (req, res) => {
-    const { userId, updates } = req.body;
-    await ensureUser(userId);
-    const fields = Object.keys(updates).map(k => `${k} = ?`).join(", ");
-    const values = Object.values(updates);
-    db.prepare(`UPDATE users SET ${fields} WHERE id = ?`).run(...values, userId);
-    res.json({ success: true });
+    try {
+      const { userId, updates } = req.body;
+      await ensureUser(userId);
+      const fields = Object.keys(updates).map(k => `${k} = ?`).join(", ");
+      const values = Object.values(updates);
+      db.prepare(`UPDATE users SET ${fields} WHERE id = ?`).run(...values, userId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      res.status(500).json({ error: "Failed to update profile" });
+    }
   });
 
   // API Routes
   // --- Feed & Posts APIs ---
   app.get("/api/feed", (req, res) => {
     try {
-      const { userId, category } = req.query;
+      const { userId, category, groupId, pageId } = req.query;
       let query = `
         SELECT p.*, u.full_name, u.avatar_url 
         FROM posts p 
@@ -353,6 +454,21 @@ async function startServer() {
         WHERE p.deleted_at IS NULL
       `;
       const params: any[] = [];
+
+      if (userId) {
+        query += " AND p.user_id = ?";
+        params.push(userId);
+      }
+
+      if (groupId) {
+        query += " AND p.group_id = ?";
+        params.push(groupId);
+      }
+
+      if (pageId) {
+        query += " AND p.page_id = ?";
+        params.push(pageId);
+      }
 
       if (category && category !== 'for_you' && category !== 'trending') {
         query += " AND p.category = ?";
@@ -364,7 +480,8 @@ async function startServer() {
       const posts = db.prepare(query).all(...params);
       res.json(posts.map((p: any) => ({
         ...p,
-        profiles: { full_name: p.full_name, avatar_url: p.avatar_url }
+        profiles: { full_name: p.full_name, avatar_url: p.avatar_url },
+        post_media: p.media_url ? [{ url: p.media_url, media_type: p.media_url.match(/\.(mp4|webm|ogg)$/i) ? 'video' : 'image' }] : []
       })));
     } catch (error) {
       console.error("Error fetching feed:", error);
@@ -373,16 +490,21 @@ async function startServer() {
   });
 
   app.post("/api/posts/create", async (req, res) => {
-    const { user_id, content, media_url, category, city, group_id, page_id } = req.body;
-    await ensureUser(user_id);
-    const id = Math.random().toString(36).substring(2, 15);
-    db.prepare(`
-      INSERT INTO posts (id, user_id, content, media_url, category, city, group_id, page_id) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, user_id, content, media_url, category || 'general', city, group_id, page_id);
-    
-    const post = db.prepare("SELECT * FROM posts WHERE id = ?").get(id);
-    res.json(post);
+    try {
+      const { user_id, content, media_url, category, city, group_id, page_id } = req.body;
+      await ensureUser(user_id);
+      const id = Math.random().toString(36).substring(2, 15);
+      db.prepare(`
+        INSERT INTO posts (id, user_id, content, media_url, category, city, group_id, page_id) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, user_id, content, media_url, category || 'general', city, group_id, page_id);
+      
+      const post = db.prepare("SELECT * FROM posts WHERE id = ?").get(id);
+      res.json(post);
+    } catch (error) {
+      console.error("Error creating post:", error);
+      res.status(500).json({ error: "Failed to create post" });
+    }
   });
 
   app.post("/api/like", async (req, res) => {
@@ -570,7 +692,14 @@ async function startServer() {
         SELECT user_id as id FROM friends WHERE friend_id = ? AND status = 'accepted'
       ) f ON u.id = f.id
     `).all(userId, userId);
-    res.json(friends.map(f => ({ profiles: f })));
+    res.json(friends.map(f => ({ 
+      id: f.id,
+      profiles: { 
+        id: f.id,
+        full_name: f.full_name, 
+        avatar_url: f.avatar_url 
+      } 
+    })));
   });
 
   app.get("/api/friends/requests/:userId", (req, res) => {
@@ -738,6 +867,222 @@ async function startServer() {
     const id = Math.random().toString(36).substring(2, 15);
     db.prepare("INSERT INTO event_attendees (id, event_id, user_id) VALUES (?, ?, ?)").run(id, event_id, user_id);
     res.json({ success: true });
+  });
+
+  // --- Ride Hailing APIs ---
+  // Smart Logic: Haversine distance
+  function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon/2) * Math.sin(dLon/2);
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+  }
+
+  // Smart Logic: Surge Pricing
+  function getSurgeMultiplier() {
+    const hour = new Date().getHours();
+    // Peak hours: 8-10 AM, 5-7 PM
+    if ((hour >= 8 && hour <= 10) || (hour >= 17 && hour <= 19)) return 1.5;
+    return 1.0;
+  }
+
+  app.post("/api/rides/estimate", async (req, res) => {
+    try {
+      const { pickup_lat, pickup_lng, type } = req.body;
+      const surge = getSurgeMultiplier();
+      const basePrice = type === 'tuktuk' ? 10 : type === 'car' ? 20 : 15;
+      const distanceMock = Math.random() * 5 + 1; // 1-6 km for demo
+      const price = Math.round((basePrice + (distanceMock * 5)) * surge);
+
+      // Smart Logic: Find nearest captain
+      const captains = db.prepare("SELECT * FROM captains WHERE is_active = 1 AND status = 'active'").all() as any[];
+      let nearestDistance = 5; // Default 5km
+      if (captains.length > 0 && pickup_lat && pickup_lng) {
+        // In a real app, we'd sort by calculateDistance(pickup_lat, pickup_lng, c.lat, c.lng)
+        nearestDistance = Math.random() * 3 + 1; // Mock 1-4 km
+      }
+      const eta = Math.round(nearestDistance * 3); // ~3 mins per km
+
+      res.json({ 
+        price, 
+        surge_multiplier: surge, 
+        eta_minutes: eta, 
+        distance_km: distanceMock.toFixed(1) 
+      });
+    } catch (error) {
+      console.error("Error estimating ride:", error);
+      res.status(500).json({ error: "Failed to estimate ride" });
+    }
+  });
+
+  app.post("/api/rides/request", async (req, res) => {
+    try {
+      const { user_id, pickup_location, dropoff_location } = req.body;
+      await ensureUser(user_id);
+      const id = Math.random().toString(36).substring(2, 15);
+      
+      // Encrypt sensitive location data
+      const encryptedPickup = encryptData(pickup_location);
+      const encryptedDropoff = encryptData(dropoff_location);
+      
+      db.prepare("INSERT INTO rides (id, user_id, pickup_location, dropoff_location) VALUES (?, ?, ?, ?)").run(id, user_id, encryptedPickup, encryptedDropoff);
+      
+      const ride = db.prepare("SELECT * FROM rides WHERE id = ?").get(id) as any;
+      if (ride) {
+        ride.pickup_location = decryptData(ride.pickup_location);
+        ride.dropoff_location = decryptData(ride.dropoff_location);
+      }
+      res.json(ride);
+    } catch (error) {
+      console.error("Error requesting ride:", error);
+      res.status(500).json({ error: "Failed to request ride" });
+    }
+  });
+
+  app.get("/api/rides/:rideId", (req, res) => {
+    const { rideId } = req.params;
+    const ride = db.prepare("SELECT * FROM rides WHERE id = ?").get(rideId) as any;
+    if (ride) {
+      ride.pickup_location = decryptData(ride.pickup_location);
+      ride.dropoff_location = decryptData(ride.dropoff_location);
+    }
+    res.json(ride);
+  });
+
+  app.patch("/api/rides/:rideId/status", (req, res) => {
+    const { rideId } = req.params;
+    const { status, driver_id } = req.body;
+    if (driver_id) {
+      db.prepare("UPDATE rides SET status = ?, driver_id = ? WHERE id = ?").run(status, driver_id, rideId);
+    } else {
+      db.prepare("UPDATE rides SET status = ? WHERE id = ?").run(status, rideId);
+    }
+    res.json({ success: true });
+  });
+
+  app.post("/api/rides/:rideId/cancel", async (req, res) => {
+    try {
+      const { rideId } = req.params;
+      const { user_id } = req.body;
+      
+      db.prepare("UPDATE rides SET status = 'cancelled' WHERE id = ?").run(rideId);
+      
+      // Smart Logic: Auto-ban for fake requests
+      if (user_id) {
+        db.prepare("UPDATE users SET cancel_count = cancel_count + 1 WHERE id = ?").run(user_id);
+        const user = db.prepare("SELECT cancel_count FROM users WHERE id = ?").get(user_id) as any;
+        
+        if (user && user.cancel_count >= 3) {
+          db.prepare("UPDATE users SET trust_level = 'banned' WHERE id = ?").run(user_id);
+          console.warn(`User ${user_id} auto-banned for excessive cancellations.`);
+        }
+        res.json({ success: true, banned: user?.cancel_count >= 3 });
+      } else {
+        res.json({ success: true });
+      }
+    } catch (error) {
+      console.error("Error cancelling ride:", error);
+      res.status(500).json({ error: "Failed to cancel ride" });
+    }
+  });
+
+  app.get("/api/admin/transport/analytics", (req, res) => {
+    try {
+      // Smart Logic: Captain performance & operational suggestions
+      const totalRides = db.prepare("SELECT COUNT(*) as count FROM rides").get() as any;
+      const avgRating = db.prepare("SELECT AVG(rating) as avg FROM captains WHERE total_ratings > 0").get() as any;
+      const activeCaptains = db.prepare("SELECT COUNT(*) as count FROM captains WHERE is_active = 1").get() as any;
+      
+      const suggestions = [];
+      if (activeCaptains.count < 5) {
+        suggestions.push("نقص في عدد الكباتن المتاحين حالياً، يُنصح بتفعيل حوافز (Surge) لجذب الكباتن.");
+      }
+      if (avgRating.avg && avgRating.avg < 4.0) {
+        suggestions.push("متوسط تقييم الكباتن منخفض، يُرجى مراجعة شكاوى العملاء.");
+      }
+      if (totalRides.count > 100 && activeCaptains.count < 10) {
+        suggestions.push("ضغط عالي على الطلبات، يُنصح بتوجيه الكباتن لمناطق الذروة.");
+      }
+      
+      res.json({
+        total_rides: totalRides.count,
+        active_captains: activeCaptains.count,
+        average_captain_rating: avgRating.avg ? avgRating.avg.toFixed(1) : 0,
+        suggestions
+      });
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ error: "Failed to fetch analytics" });
+    }
+  });
+
+  app.post("/api/rides/:rideId/rate", async (req, res) => {
+    try {
+      const { rideId } = req.params;
+      const { rating, feedback } = req.body;
+      
+      // Update ride
+      db.prepare("UPDATE rides SET rating = ?, feedback = ? WHERE id = ?").run(rating, feedback, rideId);
+      
+      // Update captain rating
+      const ride = db.prepare("SELECT driver_id FROM rides WHERE id = ?").get(rideId) as any;
+      if (ride && ride.driver_id) {
+        const captain = db.prepare("SELECT * FROM captains WHERE user_id = ?").get(ride.driver_id) as any;
+        if (captain) {
+          const newTotal = captain.total_ratings + 1;
+          const newRating = ((captain.rating * captain.total_ratings) + rating) / newTotal;
+          const newStatus = newRating < 3.0 && newTotal > 5 ? 'banned' : captain.status;
+          
+          db.prepare("UPDATE captains SET rating = ?, total_ratings = ?, status = ? WHERE user_id = ?")
+            .run(newRating, newTotal, newStatus, ride.driver_id);
+        }
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error rating ride:", error);
+      res.status(500).json({ error: "Failed to rate ride" });
+    }
+  });
+
+  app.post("/api/rides/sos", async (req, res) => {
+    try {
+      const { ride_id, user_id, location } = req.body;
+      const id = Math.random().toString(36).substring(2, 15);
+      db.prepare("INSERT INTO sos_alerts (id, ride_id, user_id, location) VALUES (?, ?, ?, ?)").run(id, ride_id, user_id, location);
+      // In a real app, this would trigger SMS/Push notifications to admins
+      res.json({ success: true, alert_id: id });
+    } catch (error) {
+      console.error("Error creating SOS alert:", error);
+      res.status(500).json({ error: "Failed to create SOS alert" });
+    }
+  });
+
+  app.post("/api/rides/proxy-call", async (req, res) => {
+    try {
+      const { ride_id, caller_id, receiver_id } = req.body;
+      // Simulate generating a masked number
+      const maskedNumber = "+20 800 " + Math.floor(100000 + Math.random() * 900000);
+      res.json({ success: true, masked_number: maskedNumber });
+    } catch (error) {
+      console.error("Error creating proxy call:", error);
+      res.status(500).json({ error: "Failed to create proxy call" });
+    }
+  });
+
+  app.post("/api/transport/location", async (req, res) => {
+    try {
+      const { user_id, lat, lng, is_mocked } = req.body;
+      if (is_mocked) {
+        // Flag user/captain for GPS spoofing
+        console.warn(`GPS Spoofing detected for user ${user_id}`);
+        // Could auto-ban or alert admin here
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error updating location:", error);
+      res.status(500).json({ error: "Failed to update location" });
+    }
   });
 
   // --- Additional Posts & Comments APIs ---

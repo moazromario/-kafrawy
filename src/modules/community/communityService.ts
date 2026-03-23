@@ -1,4 +1,4 @@
-import { supabase } from '../../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 
 export interface Post {
   id: string;
@@ -16,6 +16,7 @@ export interface Post {
     avatar_url: string;
   };
   user_reaction?: boolean;
+  post_media?: { url: string; media_type: string }[];
 }
 
 export interface Comment {
@@ -36,6 +37,10 @@ export interface Comment {
 export const communityService = {
   // --- Media Upload ---
   async uploadMedia(file: File, type: 'image' | 'video' = 'image') {
+    if (!isSupabaseConfigured) {
+      return { url: null, error: new Error('Supabase is not configured') };
+    }
+    
     const fileExt = file.name.split('.').pop();
     const fileName = `${Math.random()}.${fileExt}`;
     const filePath = `community/${fileName}`;

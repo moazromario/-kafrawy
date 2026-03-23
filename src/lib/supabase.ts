@@ -3,13 +3,15 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = (import.meta as any).env.VITE_SUPABASE_URL;
 const supabaseAnonKey = (import.meta as any).env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase URL or Anon Key is missing. Please check your environment variables.');
+const isPlaceholder = (url?: string) => !url || url.includes('your-project') || url.includes('TODO');
+
+if (!supabaseUrl || !supabaseAnonKey || isPlaceholder(supabaseUrl)) {
+  console.warn('Supabase URL or Anon Key is missing or invalid. Please check your environment variables.');
 }
 
 let supabaseClient: any = null;
 
-if (supabaseUrl && supabaseAnonKey) {
+if (supabaseUrl && supabaseAnonKey && !isPlaceholder(supabaseUrl)) {
   try {
     supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
   } catch (e) {
@@ -18,7 +20,10 @@ if (supabaseUrl && supabaseAnonKey) {
 }
 
 // Create a dummy client if initialization failed to prevent app crash
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey && !isPlaceholder(supabaseUrl));
+
 export const supabase = supabaseClient || {
+  isConfigured: false,
   storage: {
     from: () => ({
       upload: async () => ({ error: new Error('Supabase not configured') }),

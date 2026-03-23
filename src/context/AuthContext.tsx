@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { supabase } from '@/src/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/src/lib/supabase';
 import { authService } from '@/src/modules/auth/authService';
 
 interface AuthContextType {
@@ -19,7 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     try {
-      const { data, error } = await authService.getProfile(userId);
+      const { data } = await authService.getProfile(userId);
       if (data) {
         setProfile(data);
       }
@@ -29,6 +29,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setLoading(false);
+      return;
+    }
+
     // Check active sessions and sets the user
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);

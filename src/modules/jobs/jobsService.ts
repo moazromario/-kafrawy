@@ -1,7 +1,8 @@
-import { supabase } from '@/src/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/src/lib/supabase';
 
 export const jobsService = {
   async getJobs(limit = 20, offset = 0) {
+    if (!isSupabaseConfigured) return { data: [], error: null };
     const { data, error } = await supabase
       .from('job_posts')
       .select('*')
@@ -12,6 +13,7 @@ export const jobsService = {
   },
 
   async getJobById(id: string) {
+    if (!isSupabaseConfigured) return { data: null, error: null };
     const { data, error } = await supabase
       .from('job_posts')
       .select(`
@@ -24,8 +26,9 @@ export const jobsService = {
   },
 
   async applyForJob(jobId: string, resumeUrl: string, coverLetter: string) {
+    if (!isSupabaseConfigured) return { data: null, error: null };
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) return { data: null, error: new Error('User not authenticated') };
 
     // 1. Check if already applied (Backend Logic 4)
     const { data: existingApp } = await supabase
@@ -63,8 +66,9 @@ export const jobsService = {
   },
 
   async saveJob(jobId: string) {
+    if (!isSupabaseConfigured) return { data: null, error: null };
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) return { data: null, error: new Error('User not authenticated') };
 
     const { data, error } = await supabase
       .from('saved_jobs')
@@ -78,8 +82,9 @@ export const jobsService = {
   },
 
   async getSavedJobs() {
+    if (!isSupabaseConfigured) return { data: [], error: null };
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) return { data: [], error: null };
 
     const { data, error } = await supabase
       .from('saved_jobs')
@@ -92,6 +97,7 @@ export const jobsService = {
   },
 
   async searchJobs(keyword: string, location?: string) {
+    if (!isSupabaseConfigured) return { data: [], error: null };
     let query = supabase
       .from('job_posts')
       .select('*')
@@ -106,6 +112,7 @@ export const jobsService = {
   },
 
   async payAndApply(jobId: string, resumeUrl: string, coverLetter: string) {
+    if (!isSupabaseConfigured) return { data: null, error: null };
     const { data, error } = await supabase.rpc('apply_with_payment', {
       p_job_id: jobId,
       p_resume_url: resumeUrl,
@@ -118,8 +125,9 @@ export const jobsService = {
   },
 
   async getMyApplications() {
+    if (!isSupabaseConfigured) return { data: [], error: null };
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) return { data: [], error: null };
 
     const { data, error } = await supabase
       .from('job_applications')
@@ -134,8 +142,9 @@ export const jobsService = {
 
   // Employer functions
   async createJobPost(jobData: any) {
+    if (!isSupabaseConfigured) return { data: null, error: null };
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) return { data: null, error: new Error('User not authenticated') };
 
     const { data, error } = await supabase
       .from('job_posts')
@@ -149,8 +158,9 @@ export const jobsService = {
   },
 
   async getEmployerJobs() {
+    if (!isSupabaseConfigured) return { data: [], error: null };
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('User not authenticated');
+    if (!user) return { data: [], error: null };
 
     const { data, error } = await supabase
       .from('job_posts')
@@ -161,6 +171,7 @@ export const jobsService = {
   },
 
   async getJobApplications(jobId: string) {
+    if (!isSupabaseConfigured) return { data: [], error: null };
     const { data, error } = await supabase
       .from('job_applications')
       .select(`
@@ -173,6 +184,7 @@ export const jobsService = {
   },
 
   async updateApplicationStatus(applicationId: string, status: string) {
+    if (!isSupabaseConfigured) return { data: null, error: null };
     const { data, error } = await supabase
       .from('job_applications')
       .update({ status })
